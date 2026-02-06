@@ -40,15 +40,26 @@ module.exports = {
       const apiResponse = await axios.get(apiUrl, { responseType: 'arraybuffer' });
       console.log(`[API Response] Status: ${apiResponse.status}, Status Text: ${apiResponse.statusText}`);
 
-      const cacheDir = __dirname + 'cache';
+      const cacheDir = __dirname + '/cache';
       if (!fs.existsSync(cacheDir)) {
         fs.mkdirSync(cacheDir);
       }
       const imagePath = `${cacheDir}/welcome_card.png`;
       fs.writeFileSync(imagePath, Buffer.from(apiResponse.data, 'binary'));
 
+      // الرسالة الجديدة التي ستظهر مع الصورة
+      const welcomeText = `╭═══════  ═══════╮
+
+⌯︙⋄ 𝐃𝐄𝐕𝐄𝐋𝐎𝐏𝐄𝐑 ↫    Ꮥ.ᎥᏁᎨᎧ ⋄
+
+⌯︙⋄ 𝐁𝐎𝐓 𝐍𝐀𝐌𝐄 ↫『 افلين 』⋄ 
+
+⌯︙ ⋄🔑 𝐏𝐑𝐄𝐅𝐈𝐗 : 【 / 】⋄
+
+╰═══════  ═══════╯`;
+
       await api.sendMessage({
-        body: 'Welcome to the group!',
+        body: welcomeText,
         attachment: fs.createReadStream(imagePath)
       }, threadID, () => fs.unlinkSync(imagePath));
 
