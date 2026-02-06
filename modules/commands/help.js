@@ -9,24 +9,23 @@ function readDB(filePath) {
         const data = fs.readFileSync(filePath, 'utf8');
         return JSON.parse(data);
     } catch (error) {
-        console.error(`Error reading file at ${filePath}:`, error);
+        console.error(`حدث خطأ أثناء قراءة الملف ${filePath}:`, error);
         return {};
     }
 }
 
 module.exports = {
     config: {
-        name: 'help',
+        name: 'مساعدة',
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Shows a list of commands or details about a specific command.',
-        category: 'utility',
+        description: 'يعرض لك قائمة الأوامر أو تفاصيل أمر محدد.',
+        category: 'أدوات',
         guide: {
-            en: '   {pn}' +
-                '\n   {pn} <command_name>'
+            ar: '   {pn}\n   {pn} <اسم_الأمر>'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -48,14 +47,16 @@ module.exports = {
                     }
                 }
             } catch (error) {
-                console.error(`Error loading command from file ${file}:`, error);
+                console.error(`خطأ أثناء تحميل الأمر من الملف ${file}:`, error);
             }
         }
 
+        // =================================
+        // قائمة الأوامر الكاملة
+        // =================================
         if (!commandName) {
-            const ownerName = config.ownerName || 'Unknown';
-            const botName = config.botName || 'Bot';
-
+            const ownerName = config.ownerName || 'مجهول';
+            const botName = config.botName || 'بوتك';
 
             const categories = {};
             for (const cmd in commands) {
@@ -64,28 +65,26 @@ module.exports = {
                 if (!categories[c.category].has(c.name)) categories[c.category].set(c.name, c);
             }
 
-           
             let totalCommands = 0;
             for (const cat of Object.values(categories)) totalCommands += cat.size;
 
-        
             let helpMessage = '';
-            helpMessage += `╔═════☆ ${botName.toUpperCase()} HELP ☆═════╗\n\n`;
-            helpMessage += `👑 Owner: ${ownerName}  \n`;
-            helpMessage += `💻 Commands: ${totalCommands}  \n\n`;
+            helpMessage += `╔═✪🌟 ${botName.toUpperCase()} - قائمة الأوامر 🌟✪═╗\n\n`;
+            helpMessage += `👑 صاحب البوت: ${ownerName}\n`;
+            helpMessage += `💻 عدد الأوامر: ${totalCommands}\n\n`;
 
             for (const [category, cmdsMap] of Object.entries(categories)) {
                 const cmds = Array.from(cmdsMap.values());
-                helpMessage += `𐙚  ✦ ${category.toUpperCase()} ✦  ❀  \n`;
+                helpMessage += `🔹 ✦ ${category.toUpperCase()} ✦ 🔹\n`;
 
                 let line1 = '';
                 let line2 = '';
                 cmds.forEach((command, idx) => {
-                    const formattedName = command.name.padEnd(8, ' ');
+                    const formattedName = `\`${command.name}\``.padEnd(12, ' ');
                     if (idx < Math.ceil(cmds.length / 2)) {
-                        line1 += formattedName + '   |   ';
+                        line1 += formattedName + ' | ';
                     } else {
-                        line2 += formattedName + '   |   ';
+                        line2 += formattedName + ' | ';
                     }
                 });
 
@@ -94,30 +93,39 @@ module.exports = {
                 helpMessage += '\n';
             }
 
-            helpMessage += `╚═════☆ Stay sussy, stay smart ☆═════╝  \n`;
-            helpMessage += `💬 Tip: Use !help <command> for details`;
+            helpMessage += `╚═✨ استخدم ${config.prefix}مساعدة <اسم_الأمر> لمعرفة التفاصيل ✨═╝`;
 
-            return api.sendMessage(helpMessage, event.threadID);
+            // ارسال مع صورة (رابط الصورة لاحقاً)
+            const imageUrl = config.helpImage || null; // ضع رابط الصورة في config.json لاحقاً
+            if (imageUrl) {
+                return api.sendMessage({ body: helpMessage, attachment: await global.getStreamFromURL(imageUrl) }, event.threadID);
+            } else {
+                return api.sendMessage(helpMessage, event.threadID);
+            }
 
         } else {
+            // =================================
+            // تفاصيل أمر محدد
+            // =================================
             const commandConfig = commands[commandName.toLowerCase()];
             if (commandConfig) {
                 let detailMessage = '';
-                detailMessage += `╔═════☆ COMMAND INFO ☆═════╗\n\n`;
-                detailMessage += `𐙚  ✦ NAME ✦  ❀\n${commandConfig.name}\n\n`;
-                detailMessage += `𐙚  ✦ DESCRIPTION ✦  ❀\n${commandConfig.description}\n\n`;
-                detailMessage += `𐙚  ✦ AUTHOR ✦  ❀\n${commandConfig.author}\n\n`;
-                detailMessage += `𐙚  ✦ VERSION ✦  ❀\n${commandConfig.version}\n\n`;
+                detailMessage += `╔═✪🔹 معلومات الأمر 🔹✪═╗\n\n`;
+                detailMessage += `💠 الاسم: ${commandConfig.name}\n`;
+                detailMessage += `💠 الوصف: ${commandConfig.description}\n`;
+                detailMessage += `💠 المؤلف: ${commandConfig.author}\n`;
+                detailMessage += `💠 الإصدار: ${commandConfig.version}\n`;
                 if (commandConfig.aliases && commandConfig.aliases.length > 0) {
-                    detailMessage += `𐙚  ✦ ALIASES ✦  ❀\n${commandConfig.aliases.join(', ')}\n\n`;
+                    detailMessage += `💠 الأسماء المستعارة: ${commandConfig.aliases.join(', ')}\n`;
                 }
-                if (commandConfig.guide && commandConfig.guide.en) {
-                    detailMessage += `𐙚  ✦ USAGE ✦  ❀\n${commandConfig.guide.en.replace(/{pn}/g, config.prefix + commandConfig.name)}\n\n`;
+                if (commandConfig.guide && commandConfig.guide.ar) {
+                    detailMessage += `💠 الاستخدام:\n${commandConfig.guide.ar.replace(/{pn}/g, config.prefix + commandConfig.name)}\n`;
                 }
-                detailMessage += `╚═════☆ Stay sussy, stay smart ☆═════╝`;
+                detailMessage += `╚═✨ استمتع بالأوامر واستخدمها بحكمة ✨═╝`;
+
                 return api.sendMessage(detailMessage, event.threadID);
             } else {
-                return api.sendMessage(`Command "${commandName}" not found.`, event.threadID);
+                return api.sendMessage(`❌ لم يتم العثور على الأمر "${commandName}"`, event.threadID);
             }
         }
     },
