@@ -23,16 +23,16 @@ const createAxiosConfig = (timeout = 15000, isDownload = true) => ({
 
 module.exports = {
     config: {
-        name: "fbcover",
+        name: "غلاف",
         version: "1.0",
         author: "Hridoy",
         countDown: 3,
         prefix: true,
         groupAdminOnly: false,
-        description: "Generates a Facebook cover image based on style 1 or 2 with custom text.",
+        description: "إنشاء غلاف فيسبوك بالنمط 1 أو 2 مع نصوص مخصصة.",
         category: "media",
         guide: {
-            en: "   {pn} 1 | name | text 1 | text 2: Generate cover with user image, name, and two texts.\n   {pn} 2 | text 1 | text 2: Generate cover with user image and two texts as first/last name."
+            en: "   {pn} 1 | الاسم | نص 1 | نص 2: إنشاء غلاف بالنمط 1 مع صورة المستخدم، الاسم، ونصين.\n   {pn} 2 | نص 1 | نص 2: إنشاء غلاف بالنمط 2 مع صورة المستخدم ونصين كاسم أول واسم آخر."
         }
     },
     onStart: async ({ event, api, args }) => {
@@ -42,7 +42,7 @@ module.exports = {
             const senderId = event.senderID;
 
             if (!args[0] || !['1', '2'].includes(args[0])) {
-                return api.sendMessage("Please use: !fbcover 1 | name | text 1 | text 2 or !fbcover 2 | text 1 | text 2.", threadId, messageId);
+                return api.sendMessage("❌ الرجاء استخدام: !غلاف 1 | الاسم | نص 1 | نص 2 أو !غلاف 2 | نص 1 | نص 2.", threadId, messageId);
             }
 
             const style = args[0];
@@ -56,7 +56,7 @@ module.exports = {
                 const [_, text1, text2] = args.join(' ').split('|').map(item => item.trim());
                 apiUrl = `https://hridoy-apis.vercel.app/canvas/facebook-cover-v2?imageUrl=${encodeURIComponent(userImageUrl)}&firstName=${encodeURIComponent(text1 || '')}&lastName=${encodeURIComponent(text2 || '')}&apikey=hridoyXQC`;
             } else {
-                return api.sendMessage(`Invalid format for style ${style}. Use !fbcover 1 | name | text 1 | text 2 or !fbcover 2 | text 1 | text 2.`, threadId, messageId);
+                return api.sendMessage(`❌ تنسيق خاطئ للنمط ${style}. استخدم: !غلاف 1 | الاسم | نص 1 | نص 2 أو !غلاف 2 | نص 1 | نص 2.`, threadId, messageId);
             }
 
             console.log(`[API Request] Sending to: ${apiUrl}`);
@@ -65,7 +65,7 @@ module.exports = {
             console.log(`[API Response] Status: ${apiResponse.status}, Status Text: ${apiResponse.statusText}`);
 
             if (apiResponse.status !== 200 || !apiResponse.data || apiResponse.data.byteLength < 1000) {
-                throw new Error('Invalid response from Facebook cover API');
+                throw new Error('استجابة غير صالحة من API إنشاء الغلاف');
             }
 
             const cacheDir = path.resolve(__dirname, '..', 'cache');
@@ -73,7 +73,7 @@ module.exports = {
             const imagePath = path.resolve(cacheDir, `fbcover_${senderId}_${Date.now()}.png`);
             await fs.writeFile(imagePath, Buffer.from(apiResponse.data));
 
-            const messageBody = `Here’s your Facebook cover for style ${style}!`;
+            const messageBody = `✅ تم إنشاء غلاف فيسبوك بالنمط ${style} الخاص بك!`;
             await new Promise((resolve, reject) => {
                 api.sendMessage(
                     {
@@ -90,11 +90,11 @@ module.exports = {
                 );
             });
 
-            log('info', `Fbcover command executed by ${senderId} in thread ${threadId} for style ${style}`);
+            log('info', `أمر غلاف تم تنفيذه بواسطة ${senderId} في المحادثة ${threadId} للنمط ${style}`);
         } catch (error) {
-            console.error("Error in fbcover command:", error);
-            log('error', `Fbcover command error: ${error.message}`);
-            api.sendMessage("Sorry, an error occurred while generating the Facebook cover.", event.threadID, event.messageID);
+            console.error("خطأ في أمر غلاف:", error);
+            log('error', `خطأ أمر غلاف: ${error.message}`);
+            api.sendMessage("❌ حدث خطأ أثناء إنشاء غلاف فيسبوك.", event.threadID, event.messageID);
         }
     }
 };
