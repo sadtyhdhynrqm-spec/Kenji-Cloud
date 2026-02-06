@@ -4,16 +4,16 @@ const path = require('path');
 
 module.exports = {
     config: {
-        name: 'fakeid',
+        name: 'بطاقة',
         version: '1.0',
         author: 'Hridoy',
         countDown: 10,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Generates a random fake identity with avatar and personal details.',
+        description: 'توليد هوية وهمية عشوائية مع صورة ومعلومات شخصية.',
         category: 'fun',
         guide: {
-            en: '{pn}fakeid'
+            en: '{pn}بطاقة_وهمية'
         },
     },
 
@@ -25,21 +25,21 @@ module.exports = {
             const data = response.data;
 
             if (!data.success || !data.identity) {
-                return api.sendMessage("❌ Failed to generate fake identity.", event.threadID);
+                return api.sendMessage("❌ فشل في توليد الهوية الوهمية.", event.threadID);
             }
 
             const id = data.identity;
             const info = 
-`🆔 𝗙𝗔𝗞𝗘 𝗜𝗗𝗘𝗡𝗧𝗜𝗧𝗬
-👤 Name: ${id.name}
-👩‍🦰 Gender: ${id.gender}
-🎂 DOB: ${id.dob}
-📧 Email: ${id.email}
-📞 Phone: ${id.phone}
-💼 Job: ${id.job}
-🏠 Address: ${id.address}
-💻 Username: ${id.username}
-🕓 Created: ${new Date(id.createdAt).toLocaleString()}`;
+`🆔 بطاقة وهمية
+👤 الاسم: ${id.name}
+👩‍🦰 الجنس: ${id.gender}
+🎂 تاريخ الميلاد: ${id.dob}
+📧 البريد الإلكتروني: ${id.email}
+📞 الهاتف: ${id.phone}
+💼 الوظيفة: ${id.job}
+🏠 العنوان: ${id.address}
+💻 اسم المستخدم: ${id.username}
+🕓 تم الإنشاء: ${new Date(id.createdAt).toLocaleString()}`;
 
             const imageUrl = id.avatar;
 
@@ -56,8 +56,8 @@ module.exports = {
             }, event.threadID, () => fs.unlinkSync(imgPath));
 
         } catch (err) {
-            console.error("Error fetching fake ID:", err);
-            api.sendMessage("❌ Error generating fake ID.", event.threadID);
+            console.error("خطأ أثناء توليد الهوية الوهمية:", err);
+            api.sendMessage("❌ حدث خطأ أثناء توليد الهوية الوهمية.", event.threadID);
         }
     }
 };
