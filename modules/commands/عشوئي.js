@@ -4,45 +4,48 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'bbm',
-        version: '1.0',
+        name: 'عشوئي',
+        version: '1.1',
         author: 'Hridoy',
         countDown: 10,
         prefix: false, 
         groupAdminOnly: false,
-        description: 'Radom bangla band music',
-        category: 'random',
+        description: 'فيديوهات عشوائية لموسيقى بنغالية',
+        category: 'عشوائي',
         guide: {
-            en: 'Just type bbm to get a random BBM video.'
+            ar: 'اكتب bbm للحصول على فيديو BBM عشوائي 🎶'
         },
     },
     onStart: async ({ api, event }) => {
         const apiUrl = `https://hridoy-apis.vercel.app/random/bbm?apikey=hridoyXQC`;
 
         try {
-            
+            api.sendMessage('⏳ جاري تحميل فيديو BBM عشوائي...', event.threadID);
+
+            // جلب رابط الفيديو
             const response = await axios.get(apiUrl);
             if (!response.data || !response.data.url) {
-                return api.sendMessage("Failed to fetch video link. Please try again later.", event.threadID);
+                return api.sendMessage("❌ فشل في جلب رابط الفيديو. حاول لاحقاً.", event.threadID);
             }
             const videoUrl = response.data.url;
 
-           
+            // تنزيل الفيديو
             const videoResponse = await axios.get(videoUrl, { responseType: 'arraybuffer' });
 
-           
+            // حفظ الفيديو مؤقتاً
             const cacheDir = path.join(__dirname, 'cache');
             if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
             const videoPath = path.join(cacheDir, `bbm_${Date.now()}.mp4`);
             fs.writeFileSync(videoPath, Buffer.from(videoResponse.data, 'binary'));
 
-          
+            // إرسال الفيديو وحذفه بعد الإرسال
             api.sendMessage({
                 attachment: fs.createReadStream(videoPath)
             }, event.threadID, () => fs.unlinkSync(videoPath));
+
         } catch (error) {
-            console.error("Error fetching or sending BBM video:", error);
-            api.sendMessage("Sorry, an error occurred while fetching or sending the BBM video. Please try again later.", event.threadID);
+            console.error("❌ خطأ أثناء جلب أو إرسال فيديو BBM:", error);
+            api.sendMessage("❌ حدث خطأ أثناء تحميل أو إرسال الفيديو. حاول لاحقاً.", event.threadID);
         }
     }
 };
