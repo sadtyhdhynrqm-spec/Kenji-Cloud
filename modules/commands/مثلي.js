@@ -4,23 +4,20 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'gay',
+        name: 'مثلي',
         version: '1.1',
         author: 'Hridoy',
         countDown: 10,
         prefix: true,
         groupAdminOnly: false,
-        description: 'A fun command to generate a colorful overlay of a user\'s avatar.',
+        description: 'أمر ممتع لتوليد صورة ملونة لصورة المستخدم.',
         category: 'fun',
-        guide: {
-            en: '   {pn}gay [/@mention|uid|reply]'
-        },
+        guide: '{pn}مثلي [/@mention|uid|reply]',
     },
     onStart: async ({ api, event }) => {
         const { senderID, mentions, messageReply } = event;
         let targetID = senderID;
 
-      
         if (Object.keys(mentions).length > 0) {
             targetID = Object.keys(mentions)[0];
         } else if (event.messageReply && event.messageReply.senderID) {
@@ -31,7 +28,7 @@ module.exports = {
         }
 
         const userInfo = await api.getUserInfo(targetID);
-        const name = userInfo[targetID]?.name || 'Someone';
+        const name = userInfo[targetID]?.name || 'شخص ما';
         const imageUrl = `https://graph.facebook.com/${targetID}/picture?width=512&height=512&access_token=6628568379|c1e620fa708a1d5696fb991c1bde5662`;
 
         const apiUrl = `https://sus-apis-2.onrender.com/api/pride-overlay?image=${encodeURIComponent(imageUrl)}`;
@@ -45,10 +42,10 @@ module.exports = {
             if (!fs.existsSync(cacheDir)) {
                 fs.mkdirSync(cacheDir);
             }
-            const imagePath = path.join(cacheDir, `gay_${targetID}_${Date.now()}.png`);
+            const imagePath = path.join(cacheDir, `مثلي_${targetID}_${Date.now()}.png`);
             fs.writeFileSync(imagePath, Buffer.from(response.data, 'binary'));
 
-            const messageBody = `Look, I found a gay @${name} 🌈🤣`;
+            const messageBody = `شوف، لقيت هذا الشخص مثلي @${name} 🌈🤣`;
             api.sendMessage({
                 body: messageBody,
                 mentions: [{ tag: `@${name}`, id: targetID }],
@@ -56,8 +53,8 @@ module.exports = {
             }, event.threadID, () => fs.unlinkSync(imagePath));
 
         } catch (error) {
-            console.error("Error generating or sending gay image:", error);
-            api.sendMessage("Sorry, I couldn't generate the gay image right now.", event.threadID);
+            console.error("Error generating or sending image:", error);
+            api.sendMessage("عذراً، لم أتمكن من توليد الصورة الآن.", event.threadID);
         }
     },
 };
