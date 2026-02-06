@@ -2,16 +2,16 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'deepseek',
+        name: 'قطبي',  // الاسم أصبح عربي كما طلبت
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Chat with DeepSeek AI.',
+        description: 'الدردشة مع ذكاء الاصطناعي DeepSeek.',
         category: 'ai',
         guide: {
-            en: '   {pn}deepseek <prompt>'
+            en: '   {pn}قطبي <النص>' // دليل الاستخدام بالإنجليزية كما في البوت الأصلي
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -20,26 +20,26 @@ module.exports = {
 
         const prompt = args.join(' ').trim();
         if (!prompt) {
-            return api.sendMessage('❌ Please provide a prompt. Example: !deepseek Tell me a joke', threadID, messageID);
+            return api.sendMessage('❌ يرجى إدخال نص للتفاعل مع الذكاء الاصطناعي. مثال: !قطبي احكي لي نكتة', threadID, messageID);
         }
 
         try {
-            console.log(`Requesting DeepSeek with prompt: ${prompt}`);
+            console.log(`طلب إلى DeepSeek مع النص: ${prompt}`);
             const response = await axios.get(
                 `https://hridoy-apis.onrender.com/ai/deepseek?text=${encodeURIComponent(prompt)}`,
                 { timeout: 15000 }
             );
 
-            console.log('DeepSeek response:', response.data);
+            console.log('استجابة DeepSeek:', response.data);
 
             if (response.data.status && response.data.result) {
                 api.sendMessage(response.data.result, threadID, messageID);
             } else {
-                throw new Error('Invalid response from DeepSeek API');
+                throw new Error('استجابة غير صالحة من API الخاص بـ DeepSeek');
             }
         } catch (error) {
-            console.error('DeepSeek error:', error.message);
-            api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
+            console.error('خطأ DeepSeek:', error.message);
+            api.sendMessage(`❌ حدث خطأ: ${error.message}`, threadID, messageID);
         }
     },
 };
