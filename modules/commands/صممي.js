@@ -4,16 +4,16 @@ const path = require('path');
 
 module.exports = {
     config: {
-        name: 'imagen',
+        name: 'صممي',
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Generate an image using Imagen AI.',
+        description: 'يولّد صورة باستخدام الذكاء الاصطناعي Imagen.',
         category: 'ai',
         guide: {
-            en: '   {pn}imagen <prompt>'
+            ar: '   {pn}صورة <الوصف>'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -22,17 +22,25 @@ module.exports = {
 
         const prompt = args.join(' ').trim();
         if (!prompt) {
-            return api.sendMessage('❌ Please provide a prompt. Example: !imagen A futuristic city', threadID, messageID);
+            return api.sendMessage(
+                '❌ الرجاء كتابة وصف لتوليد الصورة.\nمثال: !صورة مدينة مستقبلية',
+                threadID,
+                messageID
+            );
         }
 
         try {
-            console.log(`Requesting Imagen with prompt: ${prompt}`);
+            console.log(`طلب توليد صورة بالوصف: ${prompt}`);
+
+            // رسالة انتظار مختصرة
+            api.sendMessage('🎨 جاري توليد الصورة…', threadID, messageID);
+
             const response = await axios.get(
                 `https://hridoy-apis.onrender.com/ai/imagen?text=${encodeURIComponent(prompt)}`,
                 { timeout: 15000, responseType: 'arraybuffer' }
             );
 
-            console.log('Imagen response received');
+            console.log('تم استلام الصورة من Imagen');
 
             const cacheDir = path.resolve(__dirname, 'cache');
             await fs.ensureDir(cacheDir);
@@ -40,13 +48,15 @@ module.exports = {
 
             await fs.writeFile(imagePath, Buffer.from(response.data));
 
+            // إرسال الصورة مع رسالة نجاح
             api.sendMessage({
+                body: `🖼️ تم توليد الصورة بنجاح! الوصف: "${prompt}"`,
                 attachment: fs.createReadStream(imagePath)
             }, threadID, () => fs.unlinkSync(imagePath), messageID);
 
         } catch (error) {
-            console.error('Imagen error:', error.message);
-            api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
+            console.error('حدث خطأ أثناء توليد الصورة:', error.message);
+            api.sendMessage(`❌ حدث خطأ أثناء توليد الصورة: ${error.message}`, threadID, messageID);
         }
     },
 };
