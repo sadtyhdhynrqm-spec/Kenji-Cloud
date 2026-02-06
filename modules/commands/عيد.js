@@ -3,13 +3,13 @@ const fs = require("fs-extra");
 const path = require("path");
 
 module.exports.config = {
-  name: "hbd",
+  name: "عيد", // اسم الأمر بالعربي
   version: "1.0",
   author: "Hridoy",
   countDown: 10,
   role: 0,
   prefix: false,
-  description: "Send Breaking Bad Jesse gift scene",
+  description: "إرسال مقطع هدية من مسلسل Breaking Bad",
   category: "media"
 };
 
@@ -23,17 +23,17 @@ module.exports.onStart = async ({ api, event }) => {
 
     const tempDir = path.join(__dirname, "../../temp");
     await fs.ensureDir(tempDir);
-    const filePath = path.join(tempDir, `hbd_${Date.now()}.mp4`);
+    const filePath = path.join(tempDir, `عيد_${Date.now()}.mp4`);
     await fs.writeFile(filePath, Buffer.from(response.data));
 
     await api.sendMessage({
-      body: "🎬",
+      body: "🎬 تفضل هديتك!",
       attachment: fs.createReadStream(filePath)
     }, threadID);
 
     await fs.unlink(filePath);
   } catch (err) {
-    console.error("hbd command error:", err);
-    api.sendMessage("❌ Failed to fetch or send the video.", threadID);
+    console.error("خطأ في أمر عيد:", err);
+    api.sendMessage("❌ فشل في جلب أو إرسال الفيديو.", threadID);
   }
 };
