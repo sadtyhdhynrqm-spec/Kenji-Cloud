@@ -4,16 +4,16 @@ const path = require('path');
 
 module.exports = {
     config: {
-        name: 'flux',
+        name: 'بلين',
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Generate an image using Flux AI.',
+        description: 'توليد صورة باستخدام Flux AI.',
         category: 'ai',
         guide: {
-            en: '   {pn}flux <prompt>'
+            en: '   {pn}بلين <النص المطلوب>'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -22,17 +22,17 @@ module.exports = {
 
         const prompt = args.join(' ').trim();
         if (!prompt) {
-            return api.sendMessage('❌ Please provide a prompt. Example: !flux A beautiful landscape', threadID, messageID);
+            return api.sendMessage('❌ الرجاء إدخال النص المطلوب لتوليد الصورة. مثال: !بلين منظر طبيعي جميل', threadID, messageID);
         }
 
         try {
-            console.log(`Requesting Flux with prompt: ${prompt}`);
+            console.log(`طلب Flux بالنص: ${prompt}`);
             const response = await axios.get(
                 `https://hridoy-apis.onrender.com/ai/flux?prompt=${encodeURIComponent(prompt)}`,
                 { timeout: 15000, responseType: 'arraybuffer' }
             );
 
-            console.log('Flux response received');
+            console.log('تم استلام استجابة Flux');
 
             const cacheDir = path.resolve(__dirname, 'cache');
             await fs.ensureDir(cacheDir);
@@ -45,8 +45,8 @@ module.exports = {
             }, threadID, () => fs.unlinkSync(imagePath), messageID);
 
         } catch (error) {
-            console.error('Flux error:', error.message);
-            api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
+            console.error('خطأ في Flux:', error.message);
+            api.sendMessage(`❌ حدث خطأ: ${error.message}`, threadID, messageID);
         }
     },
 };
