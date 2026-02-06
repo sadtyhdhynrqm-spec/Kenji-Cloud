@@ -5,16 +5,16 @@ const { log } = require('../../logger/logger');
 
 module.exports = {
   config: {
-    name: 'guesscountry',
+    name: 'خمن', // تم تغيير اسم الأمر
     version: '1.0',
     author: 'Hridoy',
     countDown: 5,
     prefix: true,
     adminOnly: false,
-    description: 'Guess the country based on the clue.',
-    category: 'game',
+    description: 'خمن الدولة بناءً على التلميح',
+    category: 'لعب',
     guide: {
-      en: '{pn}guesscountry'
+      ar: '{pn}خمن'
     }
   },
 
@@ -26,7 +26,7 @@ module.exports = {
       const data = res.data;
 
       if (!data.success) {
-        return api.sendMessage('❌ Could not fetch country data. Try again later.', threadID);
+        return api.sendMessage('❌ لم أتمكن من جلب بيانات الدولة. حاول لاحقاً.', threadID);
       }
 
       const clue = data.clue;
@@ -35,12 +35,12 @@ module.exports = {
 
       const optionText = `a) ${options[0]}\nb) ${options[1]}\nc) ${options[2]}\nd) ${options[3]}`;
 
-      const message = `🌍 Country Quiz\n\n🧩 Clue: ${clue}\n\n${optionText}\n\nReply with a, b, c, or d to answer.`;
+      const message = `🌍 مسابقة الدولة\n\n🧩 التلميح: ${clue}\n\n${optionText}\n\nقم بالرد بـ a أو b أو c أو d للإجابة.`;
 
       const sentMsg = await api.sendMessage(message, threadID);
 
       global.client.handleReply.push({
-        name: 'guesscountry',
+        name: 'خمن',
         messageID: sentMsg.messageID,
         threadID,
         senderID,
@@ -48,17 +48,17 @@ module.exports = {
         correctIndex: options.indexOf(answer.name),
         flagUrl: answer.flag_url,
         timeout: setTimeout(async () => {
-          const idx = global.client.handleReply.findIndex(e => e.messageID === sentMsg.messageID && e.name === 'guesscountry');
+          const idx = global.client.handleReply.findIndex(e => e.messageID === sentMsg.messageID && e.name === 'خمن');
           if (idx >= 0) global.client.handleReply.splice(idx, 1);
-          await api.sendMessage('⏰ Time is up! You did not answer.', threadID);
+          await api.sendMessage('⏰ انتهى الوقت! لم تجب.', threadID);
         }, 60000)
       });
 
-      log('info', `Country quiz sent to ${senderID} in thread ${threadID}`);
+      log('info', `تم إرسال مسابقة الدولة إلى ${senderID} في المحادثة ${threadID}`);
 
     } catch (error) {
-      log('error', `guesscountry error: ${error.message}`);
-      api.sendMessage('❌ Failed to start country quiz. Try again later.', threadID);
+      log('error', `خطأ في خمن: ${error.message}`);
+      api.sendMessage('❌ فشل بدء مسابقة الدولة. حاول لاحقاً.', threadID);
     }
   },
 
@@ -67,47 +67,46 @@ module.exports = {
     const { threadID, senderID, messageID } = event;
 
     if (!event.messageReply || event.messageReply.messageID !== handleReply.messageID) {
-      return api.sendMessage('⚠️ This is not a reply to the quiz.', threadID, messageID);
+      return api.sendMessage('⚠️ هذا الرد ليس على مسابقة الدولة.', threadID, messageID);
     }
 
     if (!['a', 'b', 'c', 'd'].includes(reply)) {
-      return api.sendMessage('⚠️ Please reply with only "a", "b", "c", or "d".', threadID, messageID);
+      return api.sendMessage('⚠️ الرجاء الرد بـ "a" أو "b" أو "c" أو "d" فقط.', threadID, messageID);
     }
 
-    const idx = global.client.handleReply.findIndex(e => e.messageID === handleReply.messageID && e.name === 'guesscountry');
+    const idx = global.client.handleReply.findIndex(e => e.messageID === handleReply.messageID && e.name === 'خمن');
     if (idx >= 0) {
       clearTimeout(global.client.handleReply[idx].timeout);
       global.client.handleReply.splice(idx, 1);
     }
 
     const userAnswerIndex = { a: 0, b: 1, c: 2, d: 3 }[reply];
-
     const correct = userAnswerIndex === handleReply.correctIndex;
 
     try {
       const response = await axios.get(handleReply.flagUrl, { responseType: 'arraybuffer' });
       const cacheDir = path.join(__dirname, '..', 'cache');
       if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-      const imgPath = path.join(cacheDir, `country_flag_${Date.now()}.png`);
+      const imgPath = path.join(cacheDir, `علم_الدولة_${Date.now()}.png`);
       fs.writeFileSync(imgPath, Buffer.from(response.data, 'binary'));
 
       const resultMsg = correct
-        ? `✅ Correct! The country is **${handleReply.correctAnswer}**.`
-        : `❌ Wrong! The correct answer was **${handleReply.correctAnswer}**.`;
+        ? `✅ صحيح! الدولة هي **${handleReply.correctAnswer}**.`
+        : `❌ خطأ! الإجابة الصحيحة هي **${handleReply.correctAnswer}**.`;
 
       await api.sendMessage({
         body: resultMsg,
         attachment: fs.createReadStream(imgPath)
       }, threadID, () => fs.unlinkSync(imgPath));
 
-      log('info', `User ${senderID} answered "${reply}" (${correct ? 'correct' : 'wrong'}) in guesscountry`);
+      log('info', `المستخدم ${senderID} أجاب "${reply}" (${correct ? 'صحيح' : 'خطأ'}) في مسابقة الدولة`);
 
     } catch (error) {
-      log('error', `Error sending flag image: ${error.message}`);
+      log('error', `خطأ أثناء إرسال صورة العلم: ${error.message}`);
       await api.sendMessage(
         correct
-          ? `✅ Correct! The country is **${handleReply.correctAnswer}**.`
-          : `❌ Wrong! The correct answer was **${handleReply.correctAnswer}**.`,
+          ? `✅ صحيح! الدولة هي **${handleReply.correctAnswer}**.`
+          : `❌ خطأ! الإجابة الصحيحة هي **${handleReply.correctAnswer}**.`,
         threadID
       );
     }
