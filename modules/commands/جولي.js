@@ -3,16 +3,16 @@ const fs = require('fs-extra');
 const path = require('path');
 
 module.exports.config = {
-    name: "july",
+    name: "جولي",
     version: "1.0",
     author: "Hridoy",
     countDown: 10,
     role: 0,
     prefix: false,
-    description: "Sends a specific video",
-    category: "media",
+    description: "يرسل فيديو محدد.",
+    category: "وسائط",
     guide: {
-        en: "Just type 'july' to get the video."
+        ar: "اكتب 'جولي' للحصول على الفيديو."
     }
 };
 
@@ -21,13 +21,16 @@ module.exports.onStart = async ({ api, event }) => {
         const threadId = event.threadID;
 
         const videoUrl = "https://drive.google.com/uc?export=download&id=1eIgNABsGRChZaYaTC737_yr0GrJV5eEK";
-        console.log(`[API Request] Sending to: ${videoUrl}`);
+        console.log(`[API Request] إرسال الفيديو من: ${videoUrl}`);
+
+        // رسالة انتظار قصيرة
+        api.sendMessage('🎬 جاري إرسال الفيديو…', threadId);
 
         const response = await axios.get(videoUrl, { responseType: 'arraybuffer' });
         console.log(`[API Response] Status: ${response.status}, Status Text: ${response.statusText}`);
 
         if (response.status !== 200 || !response.data || response.data.byteLength < 1000) {
-            throw new Error('Invalid video response from URL');
+            throw new Error('استجابة غير صالحة للفيديو من الرابط');
         }
 
         const tempDir = path.join(__dirname, '../../temp');
@@ -37,7 +40,7 @@ module.exports.onStart = async ({ api, event }) => {
 
         await api.sendMessage(
             {
-                body: '🙂',
+                body: '✅ تم إرسال الفيديو!',
                 attachment: fs.createReadStream(videoPath),
             },
             threadId
@@ -45,7 +48,7 @@ module.exports.onStart = async ({ api, event }) => {
 
         await fs.unlink(videoPath);
     } catch (error) {
-        console.error('Error in july command:', error);
-        api.sendMessage('❌ Failed to fetch or send the video.', event.threadID);
+        console.error('حدث خطأ في أمر جولي:', error);
+        api.sendMessage('❌ فشل في جلب أو إرسال الفيديو.', event.threadID);
     }
 };
