@@ -4,15 +4,15 @@ const path = require('path');
 
 module.exports = {
   config: {
-    name: 'dl',
+    name: 'تحميل',
     version: '1.0',
     author: 'Hridoy',
     countDown: 5,
     prefix: true,
-    description: 'Download and send videos from Facebook, Instagram, TikTok, or YouTube.',
+    description: 'تحميل وإرسال الفيديوهات من فيسبوك، انستجرام، تيك توك، أو يوتيوب.',
     category: 'media',
     guide: {
-      en: '{pn}dl <video_url>'
+      en: '{pn}تحميل <رابط_الفيديو>'
     }
   },
 
@@ -22,21 +22,20 @@ module.exports = {
     const url = args.join(' ').trim();
 
     if (!url || !url.startsWith('https://')) {
-      return api.sendMessage('❌ Please provide a valid video URL. Example: {pn}dl https://www.youtube.com/watch?v=example', threadID, messageID);
+      return api.sendMessage('❌ الرجاء إدخال رابط فيديو صحيح. مثال: {pn}تحميل https://www.youtube.com/watch?v=example', threadID, messageID);
     }
 
     let statusMsg;
     try {
-     
       statusMsg = await new Promise((resolve, reject) => {
-        api.sendMessage('🔎 Processing your video...', threadID, (err, info) => {
+        api.sendMessage('🔎 جاري معالجة الفيديو...', threadID, (err, info) => {
           if (err) reject(err);
           else resolve(info);
         }, messageID);
       });
 
       let apiUrl, downloadKey;
-     
+
       if (url.includes('facebook.com') || url.includes('fb.watch')) {
         apiUrl = `https://hridoy-apis.vercel.app/downloader/facebook2?url=${encodeURIComponent(url)}&apikey=hridoyXQC`;
         downloadKey = 'video_HD.url';
@@ -50,47 +49,39 @@ module.exports = {
         apiUrl = `https://hridoy-apis.vercel.app/downloader/ytmp4?url=${encodeURIComponent(url)}&format=1080&apikey=hridoyXQC`;
         downloadKey = 'result.download';
       } else {
-        await api.editMessage('❌ Unsupported URL. Please provide a valid Facebook, Instagram, TikTok, or YouTube URL.', statusMsg.messageID);
+        await api.editMessage('❌ الرابط غير مدعوم. الرجاء استخدام رابط من فيسبوك، انستجرام، تيك توك، أو يوتيوب.', statusMsg.messageID);
         return;
       }
 
-     
-      await api.editMessage('⬇️ Downloading video...', statusMsg.messageID);
+      await api.editMessage('⬇️ جاري تحميل الفيديو...', statusMsg.messageID);
 
-     
       const response = await axios.get(apiUrl);
       if (!response.data || !response.data.status) {
-        await api.editMessage('❌ Failed to fetch video download link.', statusMsg.messageID);
+        await api.editMessage('❌ فشل الحصول على رابط تحميل الفيديو.', statusMsg.messageID);
         return;
       }
 
-     
       const downloadUrl = downloadKey.split('.').reduce((obj, key) => obj && obj[key], response.data);
       if (!downloadUrl) {
-        await api.editMessage('❌ No valid download link found in the response.', statusMsg.messageID);
+        await api.editMessage('❌ لم يتم العثور على رابط تحميل صالح.', statusMsg.messageID);
         return;
       }
 
-     
       const cacheDir = path.join(__dirname, 'cache');
       await fs.ensureDir(cacheDir);
       const filePath = path.join(cacheDir, `video_${Date.now()}.mp4`);
 
-      
       const videoRes = await axios.get(downloadUrl, { responseType: 'arraybuffer', timeout: 60000 });
       await fs.writeFile(filePath, Buffer.from(videoRes.data));
 
-      
-      await api.editMessage('📤 Sending video...', statusMsg.messageID);
+      await api.editMessage('📤 جاري إرسال الفيديو...', statusMsg.messageID);
 
-      
-      const title = response.data.result?.title || response.data.data?.title || 'Video';
-      const author = response.data.data?.author || response.data.creator || 'Unknown';
+      const title = response.data.result?.title || response.data.data?.title || 'فيديو';
+      const author = response.data.data?.author || response.data.creator || 'غير معروف';
 
-     
       await new Promise((resolve, reject) => {
         api.sendMessage({
-          body: `🎥 ${title}\n👤 Author: ${author}`,
+          body: `🎥 ${title}\n👤 المؤلف: ${author}`,
           attachment: fs.createReadStream(filePath)
         }, threadID, (err) => {
           fs.unlink(filePath).catch(() => {});
@@ -99,18 +90,17 @@ module.exports = {
         }, messageID);
       });
 
-     
       if (statusMsg?.messageID) {
         await api.unsendMessage(statusMsg.messageID);
       }
 
     } catch (error) {
-      console.error('[dl] Error:', error);
+      console.error('[تحميل] خطأ:', error);
       if (statusMsg?.messageID) {
-        await api.editMessage('❌ Error occurred while processing your request.', statusMsg.messageID);
+        await api.editMessage('❌ حدث خطأ أثناء معالجة الطلب.', statusMsg.messageID);
         setTimeout(() => api.unsendMessage(statusMsg.messageID), 10000);
       } else {
-        api.sendMessage('❌ Error occurred while processing your request.', threadID, messageID);
+        api.sendMessage('❌ حدث خطأ أثناء معالجة الطلب.', threadID, messageID);
       }
     }
   }
