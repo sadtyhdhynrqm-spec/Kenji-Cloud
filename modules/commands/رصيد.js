@@ -11,25 +11,24 @@ function readDB(filePath) {
         if (error.code === 'ENOENT') {
             return {};
         }
-        console.error(`Error reading database at ${filePath}:`, error);
+        console.error(`خطأ في قراءة قاعدة البيانات ${filePath}:`, error);
         return {};
     }
 }
 
 module.exports = {
     config: {
-        name: 'balance',
+        name: 'رصيد',
         version: '1.0',
         author: 'Hridoy',
-        aliases: ['bal'],
+        aliases: ['bal', 'فلوس'],
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Check your or another user\'s balance.',
-        category: 'economy',
+        description: 'عرض رصيدك أو رصيد شخص آخر.',
+        category: 'اقتصاد',
         guide: {
-            en: '   {pn}' +
-                '\n   {pn} [@mention|uid]'
+            ar: '   {pn}\n   {pn} [@منشن | uid]'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -48,9 +47,15 @@ module.exports = {
 
         if (!userDB[targetID]) {
             if (targetID === senderID) {
-                return api.sendMessage("You don't have a user account.", event.threadID);
+                return api.sendMessage(
+                    '❌ ما عندك حساب في النظام.',
+                    event.threadID
+                );
             } else {
-                return api.sendMessage("This user does not have an account.", event.threadID);
+                return api.sendMessage(
+                    '❌ هذا المستخدم ما عنده حساب.',
+                    event.threadID
+                );
             }
         }
 
@@ -59,9 +64,9 @@ module.exports = {
 
         let message;
         if (targetID === senderID) {
-            message = `Your current balance is: ${balance}`;
+            message = `💰 رصيدك الحالي هو: ${balance}`;
         } else {
-            message = `${name}'s current balance is: ${balance}`;
+            message = `💳 رصيد ${name} الحالي هو: ${balance}`;
         }
 
         return api.sendMessage(message, event.threadID);
