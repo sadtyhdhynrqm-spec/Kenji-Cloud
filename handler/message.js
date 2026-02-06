@@ -9,16 +9,16 @@ const handleMessage = async (event, api, commands) => {
 
  
     const [userInfo, threadInfo] = await Promise.all([
-      api.getUserInfo(event.senderID),
-      api.getThreadInfo(event.threadID)
+      api.getUserInfo(event.senderID).catch(() => ({ [event.senderID]: { name: "User" } })),
+      api.getThreadInfo(event.threadID).catch(() => ({ name: "Group" }))
     ]);
 
-    const userName = userInfo[event.senderID]?.name || 'Unknown User';
-    const threadName = threadInfo?.name || 'Unknown Thread';
+    const userName = userInfo[event.senderID]?.name || 'User';
+    const threadName = threadInfo?.name || 'Group';
 
-  
-    Users.create(event.senderID, userName);
-    Threads.create(event.threadID, threadName);
+    // Ensure thread and user exist in database immediately
+    await Threads.create(event.threadID, threadName);
+    await Users.create(event.senderID, userName);
 
   
     const userData = Users.get(event.senderID);
