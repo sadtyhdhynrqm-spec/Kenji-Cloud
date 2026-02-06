@@ -2,16 +2,16 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'gpt4',
+        name: 'بلينه', // تم تغيير اسم الأمر
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Chat with GPT-4 AI.',
-        category: 'ai',
+        description: 'تحدث مع GPT-4 الذكي.',
+        category: 'ذكاء اصطناعي',
         guide: {
-            en: '   {pn}gpt4 <query>'
+            ar: '{pn}بلينه <سؤالك>'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -20,26 +20,26 @@ module.exports = {
 
         const query = args.join(' ').trim();
         if (!query) {
-            return api.sendMessage('❌ Please provide a query. Example: !gpt4 Tell me a fact', threadID, messageID);
+            return api.sendMessage('❌ الرجاء كتابة سؤالك. مثال: !بلينه اخبرني بمعلومة', threadID, messageID);
         }
 
         try {
-            console.log(`Requesting GPT-4 with query: ${query}`);
+            console.log(`إرسال طلب إلى GPT-4: ${query}`);
             const response = await axios.get(
                 `https://hridoy-apis.onrender.com/ai/gpt4?ask=${encodeURIComponent(query)}`,
                 { timeout: 15000 }
             );
 
-            console.log('GPT-4 response:', response.data);
+            console.log('رد GPT-4:', response.data);
 
             if (response.data.status && response.data.result) {
                 api.sendMessage(response.data.result, threadID, messageID);
             } else {
-                throw new Error('Invalid response from GPT-4 API');
+                throw new Error('رد غير صالح من GPT-4 API');
             }
         } catch (error) {
-            console.error('GPT-4 error:', error.message);
-            api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
+            console.error('خطأ GPT-4:', error.message);
+            api.sendMessage(`❌ خطأ: ${error.message}`, threadID, messageID);
         }
     },
 };
