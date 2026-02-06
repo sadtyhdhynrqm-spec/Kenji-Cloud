@@ -12,7 +12,7 @@ function readDB(filePath) {
         if (error.code === 'ENOENT') {
             return {};
         }
-        console.error(`Error reading database at ${filePath}:`, error);
+        console.error(`خطأ في قراءة قاعدة البيانات في ${filePath}:`, error);
         return {};
     }
 }
@@ -21,22 +21,22 @@ function writeDB(filePath, data) {
     try {
         fs.writeFileSync(filePath, JSON.stringify(data, null, 4));
     } catch (error) {
-        console.error(`Error writing to database at ${filePath}:`, error);
+        console.error(`خطأ في كتابة قاعدة البيانات في ${filePath}:`, error);
     }
 }
 
 module.exports = {
     config: {
-        name: 'deposit',
+        name: 'ايداع', // الاسم بالعربي ومختصر
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Deposit money from your balance to your bank account.',
-        category: 'economy',
+        description: 'تحويل الأموال من رصيدك إلى حسابك البنكي.',
+        category: 'اقتصاد',
         guide: {
-            en: '   {pn} <amount>'
+            ar: '{pn} <المبلغ>'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -44,22 +44,22 @@ module.exports = {
         const amount = parseInt(args[0]);
 
         if (isNaN(amount) || amount <= 0) {
-            return api.sendMessage('Please provide a valid amount to deposit.', event.threadID);
+            return api.sendMessage('يرجى إدخال مبلغ صالح للإيداع.', event.threadID);
         }
 
         const userDB = readDB(userDBPath);
         const bankDB = readDB(bankDBPath);
 
         if (!userDB[senderID]) {
-            return api.sendMessage("You don't have a user account.", event.threadID);
+            return api.sendMessage("ليس لديك حساب مستخدم.", event.threadID);
         }
 
         if (!bankDB[senderID]) {
-            return api.sendMessage("You don't have a bank account. Use `bank create` to make one.", event.threadID);
+            return api.sendMessage("ليس لديك حساب بنكي. استخدم `bank create` لإنشاء واحد.", event.threadID);
         }
 
         if (userDB[senderID].balance < amount) {
-            return api.sendMessage("You don't have enough balance to deposit that amount.", event.threadID);
+            return api.sendMessage("رصيدك غير كافي لإيداع هذا المبلغ.", event.threadID);
         }
 
         userDB[senderID].balance -= amount;
@@ -68,6 +68,6 @@ module.exports = {
         writeDB(userDBPath, userDB);
         writeDB(bankDBPath, bankDB);
 
-        return api.sendMessage(`Successfully deposited ${amount}. Your new bank balance is ${bankDB[senderID].bankBalance}.`, event.threadID);
+        return api.sendMessage(`تم إيداع ${amount} بنجاح. رصيدك في البنك الآن ${bankDB[senderID].bankBalance}.`, event.threadID);
     },
 };
