@@ -4,16 +4,16 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'hijab',
+        name: 'حجاب',
         version: '1.0',
         author: 'Hridoy',
         countDown: 10,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Applies an AI-generated hijab to a face in the image. Reply to an image or mention a user to use their profile picture.',
+        description: 'يضيف حجاباً باستخدام الذكاء الاصطناعي على صورة الوجه. رَد على صورة أو ضع منشن لشخص.',
         category: 'ai',
         guide: {
-            en: '   {pn}hijab [reply to an image] or {pn}hijab [/@mention|uid]'
+            ar: '   {pn}حجاب [رد على صورة]\n   {pn}حجاب [/@اسم_المستخدم|uid]'
         },
     },
     onStart: async ({ api, event }) => {
@@ -21,7 +21,9 @@ module.exports = {
         let imageUrl;
         let targetIDForFilename = senderID;
 
-   
+        // ===================================
+        // التحقق من الصورة المردودة أو المنشن
+        // ===================================
         if (messageReply && messageReply.attachments && messageReply.attachments.length > 0 && ['photo', 'sticker'].includes(messageReply.attachments[0].type)) {
             imageUrl = messageReply.attachments[0].url;
             targetIDForFilename = messageReply.senderID;
@@ -38,28 +40,32 @@ module.exports = {
         }
 
         if (!imageUrl) {
-            return api.sendMessage("Please reply to an image or mention a user to apply hijab to their profile picture.", event.threadID);
+            return api.sendMessage("❌ الرجاء الرد على صورة أو وضع منشن لتطبيق الحجاب على صورة الملف الشخصي.", event.threadID);
         }
 
         const apiUrl = `https://hridoy-apis.vercel.app/ai-image/custom?url=${encodeURIComponent(imageUrl)}&apikey=hridoyXQC`;
 
         try {
-            api.sendMessage("🧕 | Applying hijab with AI, please wait...", event.threadID);
+            // رسالة انتظار مزخرفة
+            api.sendMessage("🧕✨ جاري تطبيق الحجاب باستخدام الذكاء الاصطناعي... يرجى الانتظار ✨🧕", event.threadID);
+
             const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
 
             const cacheDir = path.join(__dirname, 'cache');
-            if (!fs.existsSync(cacheDir)) {
-                fs.mkdirSync(cacheDir);
-            }
+            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
             const imagePath = path.join(cacheDir, `hijab_${targetIDForFilename}_${Date.now()}.png`);
             fs.writeFileSync(imagePath, Buffer.from(response.data, 'binary'));
 
+            // إرسال الصورة مع زخرفة في الرسالة
             api.sendMessage({
+                body: "🧕✨ تم تطبيق الحجاب بنجاح! ✨🧕",
                 attachment: fs.createReadStream(imagePath)
             }, event.threadID, () => fs.unlinkSync(imagePath));
+
         } catch (error) {
-            console.error("Error generating hijab image:", error);
-            api.sendMessage("Sorry, an error occurred while processing the image. Please try again later.", event.threadID);
+            console.error("حدث خطأ أثناء إنشاء صورة الحجاب:", error);
+            api.sendMessage("❌ حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى لاحقاً.", event.threadID);
         }
     }
 };
