@@ -3,14 +3,14 @@ const fs = require("fs-extra");
 const path = require("path");
 
 module.exports.config = {
-  name: "goat",
+  name: "ماعز", // اسم الأمر بالعربي
   version: "1.0",
   author: "Hridoy",
   countDown: 5,
   role: 0,
   prefix: false,
-  description: "Send a random goat image from Google Drive",
-  category: "fun"
+  description: "يرسل صورة عشوائية لماعز من جوجل درايف",
+  category: "مرح"
 };
 
 module.exports.onStart = async ({ api, event }) => {
@@ -38,17 +38,17 @@ module.exports.onStart = async ({ api, event }) => {
 
     const tempDir = path.join(__dirname, "../../temp");
     await fs.ensureDir(tempDir);
-    const filePath = path.join(tempDir, `goat_${Date.now()}.jpg`);
+    const filePath = path.join(tempDir, `ماعز_${Date.now()}.jpg`);
     await fs.writeFile(filePath, Buffer.from(response.data));
 
     await api.sendMessage({
-      body: "🐐",
+      body: "🐐 صورة عشوائية لماعز!",
       attachment: fs.createReadStream(filePath)
     }, threadID);
 
     await fs.unlink(filePath);
   } catch (err) {
-    console.error("Goat command error:", err);
-    api.sendMessage("❌ Failed to fetch goat image.", threadID);
+    console.error("خطأ في أمر الماعز:", err);
+    api.sendMessage("❌ فشل في جلب صورة الماعز.", threadID);
   }
 };
