@@ -3,16 +3,16 @@ const fs = require('fs-extra');
 const path = require('path');
 
 module.exports.config = {
-    name: "men",
+    name: "رجال",
     version: "1.0",
     author: "Hridoy",
     countDown: 10,
     role: 0,
     prefix: false,
-    description: "Sends a specific video",
+    description: "يرسل فيديو محدد.",
     category: "media",
     guide: {
-        en: "Just type 'men' to get the video."
+        ar: "اكتب فقط «رجال» لإرسال الفيديو."
     }
 };
 
@@ -21,13 +21,13 @@ module.exports.onStart = async ({ api, event }) => {
         const threadId = event.threadID;
 
         const videoUrl = "https://drive.google.com/uc?export=download&id=1KaQZuZxyb6ZbqmiQg1NG6lVXnLGoZdOL";
-        console.log(`[API Request] Sending to: ${videoUrl}`);
+        console.log(`[طلب فيديو] ${videoUrl}`);
 
         const response = await axios.get(videoUrl, { responseType: 'arraybuffer' });
-        console.log(`[API Response] Status: ${response.status}, Status Text: ${response.statusText}`);
+        console.log(`[استجابة] الحالة: ${response.status}`);
 
         if (response.status !== 200 || !response.data || response.data.byteLength < 1000) {
-            throw new Error('Invalid video response from URL');
+            throw new Error('استجابة فيديو غير صالحة');
         }
 
         const tempDir = path.join(__dirname, '../../temp');
@@ -45,7 +45,7 @@ module.exports.onStart = async ({ api, event }) => {
 
         await fs.unlink(videoPath);
     } catch (error) {
-        console.error('Error in men command:', error);
-        api.sendMessage('❌ Failed to fetch or send the video.', event.threadID);
+        console.error('خطأ أمر رجال:', error);
+        api.sendMessage('❌ فشل تحميل أو إرسال الفيديو.', event.threadID);
     }
 };
