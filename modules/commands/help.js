@@ -22,7 +22,7 @@ module.exports = {
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'يعرض لك قائمة الأوامر أو تفاصيل أمر محدد مع صورة.',
+        description: 'يعرض لك قائمة الأوامر أو تفاصيل أمر محدد.',
         category: 'أدوات',
         guide: {
             ar: '   {pn}\n   {pn} <اسم_الأمر>'
@@ -52,9 +52,12 @@ module.exports = {
         }
 
         // =================================
-        // قائمة الأوامر الكاملة
+        // قائمة الأوامر الكاملة مع تقسيمها لصفحات
         // =================================
         if (!commandName) {
+            const ownerName = config.ownerName || 'مجهول';
+            const botName = config.botName || 'بوتك';
+
             const categories = {};
             for (const cmd in commands) {
                 const c = commands[cmd];
@@ -65,31 +68,58 @@ module.exports = {
             let totalCommands = 0;
             for (const cat of Object.values(categories)) totalCommands += cat.size;
 
-            let helpMessage = '';
-            helpMessage += `•◌───˚❀˚─◌─˚❀˚───◌•◌───˚❀˚\n\n`;
-            helpMessage += `⌈ ${config.botName || 'بوتك'} ⌋\n`;
-            helpMessage += `💻 عدد الأوامر: ${totalCommands}\n\n`;
-
+            // بناء قائمة كل الأوامر في مصفوفة نصية واحدة
+            const allCategories = [];
             for (const [category, cmdsMap] of Object.entries(categories)) {
                 const cmds = Array.from(cmdsMap.values());
-                helpMessage += `•◌────˚❀˚───◌ ────˚❀˚────\n\n`;
-                helpMessage += `⌈  ${category.toUpperCase()} ⌋\n`;
-                let line = '';
-                cmds.forEach(command => {
-                    line += `⋄ ${command.name} `;
-                });
-                helpMessage += line.trim() + '\n\n';
+                let categoryText = '';
+                categoryText += `•◌────˚❀˚───◌ ────˚❀˚────\n\n`;
+                categoryText += `⌈  ${category.toUpperCase()} ⌋\n`;
+
+                if (cmds.length === 0) {
+                    categoryText += 'لا توجد أوامر\n\n';
+                } else {
+                    let line = '';
+                    cmds.forEach((command) => {
+                        line += `⋄ ${command.name}  `;
+                    });
+                    categoryText += line.trim() + '\n\n';
+                }
+                allCategories.push(categoryText);
             }
 
-            helpMessage += `•◌────˚❀˚───◌ ────˚❀˚────\n`;
-            helpMessage += `⇒ ℹ️ استخدم: ${config.prefix}مساعدة <اسم_الأمر> لعرض التفاصيل`;
+            // تقسيم القائمة إلى 3 صفحات تقريبياً بنفس الحجم
+            const pages = [];
+            const chunkSize = Math.ceil(allCategories.length / 3);
+            for (let i = 0; i < 3; i++) {
+                const pageCategories = allCategories.slice(i * chunkSize, (i + 1) * chunkSize);
+                if (pageCategories.length === 0) continue;
 
-            // ارسال مع الصورة اللي انت وريتنا
-            const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
-            return api.sendMessage(
-                { body: helpMessage, attachment: await global.getStreamFromURL(imageUrl) },
-                event.threadID
-            );
+                let helpMessage = '';
+                helpMessage += `•◌───˚❀˚─◌─˚❀˚───◌•◌───˚❀˚\n\n`;
+                helpMessage += `⌈  ${botName.toUpperCase()} ⌋\n`;
+                helpMessage += `👑 صاحب البوت: ${ownerName}\n`;
+                helpMessage += `💻 عدد الأوامر: ${totalCommands}\n\n`;
+
+                helpMessage += pageCategories.join('');
+
+                helpMessage += `•◌────˚❀˚───◌ ────˚❀˚────\n\n`;
+                helpMessage += `⇒ 📊 المجموع: ${totalCommands} أمر\n`;
+                helpMessage += `⇒ ℹ️ استخدم: ${config.prefix}[اسم_الأمر] لعرض التفاصيل\n`;
+                helpMessage += `📄 الصفحة ${i + 1} / 3\n`;
+
+                pages.push(helpMessage);
+            }
+
+            // إرسال كل صفحة مع صورة (إذا موجودة)
+            const imageUrl = config.helpImage || null;
+            for (const page of pages) {
+                if (imageUrl) {
+                    await api.sendMessage({ body: page, attachment: await global.getStreamFromURL(imageUrl) }, event.threadID);
+                } else {
+                    await api.sendMessage(page, event.threadID);
+                }
+            }
 
         } else {
             // =================================
@@ -117,4 +147,4 @@ module.exports = {
             }
         }
     },
-};
+    }
