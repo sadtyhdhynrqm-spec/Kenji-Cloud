@@ -4,16 +4,16 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'raven',
+        name: 'غراب', // تغيير اسم الأمر للعربي
         version: '1.0',
         author: 'Hridoy',
         countDown: 10,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Generates a raven presenting image with a user\'s avatar and text.',
+        description: 'ينشئ صورة غراب يقدم شيئًا باستخدام صورة المستخدم والنص المرسل.',
         category: 'fun',
         guide: {
-            en: '   {pn}raven <text> [/@mention|uid|reply]'
+            en: '{pn}غراب <نص> [/@mention|uid|رد على رسالة]'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -22,16 +22,16 @@ module.exports = {
         let text = args.join(' ').trim();
 
         if (!text) {
-            return api.sendMessage('Please provide text for the raven image.', event.threadID);
+            return api.sendMessage('❌ من فضلك أرسل نصًا لإنشاء صورة الغراب.', event.threadID);
         }
 
-
+        // تحديد المستخدم المستهدف
         if (Object.keys(mentions).length > 0) {
             targetID = Object.keys(mentions)[0];
             const mentionText = mentions[targetID];
             text = text.replace(mentionText, '').trim();
-        } else if (event.messageReply && event.messageReply.senderID) {
-            targetID = event.messageReply.senderID;
+        } else if (messageReply && messageReply.senderID) {
+            targetID = messageReply.senderID;
         } else if (event.body.split(' ').length > 1) {
             const uid = event.body.split(' ').slice(1).join(' ').replace(/[^0-9]/g, '');
             if (uid.length === 15 || uid.length === 16) targetID = uid;
@@ -43,14 +43,14 @@ module.exports = {
         const apiUrl = `https://sus-apis-2.onrender.com/api/raven-presenting?image=${encodeURIComponent(imageUrl)}&message=${encodeURIComponent(text)}`;
 
         try {
-            console.log(`[API Request] Sending to: ${apiUrl}`);
+            console.log(`[API Request] إرسال إلى: ${apiUrl}`);
             const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
-            console.log(`[API Response] Status: ${response.status}, Status Text: ${response.statusText}`);
+            console.log(`[API Response] الحالة: ${response.status}, Status Text: ${response.statusText}`);
 
+            // إنشاء مجلد مؤقت إذا لم يكن موجود
             const cacheDir = path.join(__dirname, 'cache');
-            if (!fs.existsSync(cacheDir)) {
-                fs.mkdirSync(cacheDir);
-            }
+            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
             const imagePath = path.join(cacheDir, `raven_${targetID}_${Date.now()}.png`);
             fs.writeFileSync(imagePath, Buffer.from(response.data, 'binary'));
 
@@ -59,8 +59,8 @@ module.exports = {
             }, event.threadID, () => fs.unlinkSync(imagePath));
 
         } catch (error) {
-            console.error("Error generating or sending raven image:", error);
-            api.sendMessage("Sorry, I couldn't generate the raven image right now.", event.threadID);
+            console.error("حدث خطأ أثناء إنشاء أو إرسال صورة الغراب:", error);
+            api.sendMessage('❌ عذرًا، لم أتمكن من إنشاء صورة الغراب الآن.', event.threadID);
         }
     },
 };
