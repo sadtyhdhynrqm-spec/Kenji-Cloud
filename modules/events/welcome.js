@@ -5,50 +5,70 @@ const fs = require('fs-extra');
 module.exports = {
   config: {
     name: 'welcome',
-    version: '1.0',
+    version: '1.2',
     author: 'Hridoy',
     eventType: ['log:subscribe']
   },
+
   onStart: async ({ event, api }) => {
     try {
       const { threadID, logMessageData } = event;
+      const botID = api.getCurrentUserID();
+
+      // الشخص/الكيان المضاف
+      const added = logMessageData.addedParticipants[0];
+      const addedID = added.userFbId;
+
+      // ===============================
+      // 1️⃣ إذا البوت نفسه اتضاف
+      // ===============================
+      if (addedID === botID) {
+        const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+
+        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const cacheDir = __dirname + '/cache';
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
+        const imagePath = `${cacheDir}/bot_join.png`;
+        fs.writeFileSync(imagePath, Buffer.from(response.data));
+
+        const botWelcome = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
+⌯︙  تـم الاتـصال بـنجاح ✅
+
+اســـم البوت ⎆﹝ابلين ﹞⋄〚 ! 〛
+
+⌯︙استخدم البادئة! للتحكم بالأوامر
+❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`;
+
+        await api.sendMessage({
+          body: botWelcome,
+          attachment: fs.createReadStream(imagePath)
+        }, threadID, () => fs.unlinkSync(imagePath));
+
+        return; // مهم جداً
+      }
+
+      // ===============================
+      // 2️⃣ إذا عضو عادي اتضاف
+      // ===============================
       const thread = await api.getThreadInfo(threadID);
-      const newUser = logMessageData.addedParticipants[0];
-      const uid = newUser.userFbId;
-      const userInfo = await api.getUserInfo(uid);
-      const userName = userInfo[uid].name;
+      const userInfo = await api.getUserInfo(addedID);
+      const userName = userInfo[addedID].name;
       const memberCount = thread.participantIDs.length;
 
-      // رابط الصورة الثابتة
-      const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+      const welcomeText = `
+❖━┄⋄┄━╃⊱ اهـــــلــيــن ⊰╄━┄⋄┄━❖
 
-      // جلب الصورة كملف بايت
-      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const cacheDir = __dirname + '/cache';
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir);
-      }
-      const imagePath = `${cacheDir}/welcome_card.png`;
-      fs.writeFileSync(imagePath, Buffer.from(response.data, 'binary'));
+⌯︙🌸 نورت القروب يا 『 ${userName} 』
+⌯︙👥 عدد الأعضاء الآن ↫ 『 ${memberCount} 』
+⌯︙💬 نتمنى لك وقت جميل معنا
 
-      // الرسالة الترحيبية
-      const welcomeText = `╭═══════  ═══════╮
+❖━┄⋄┄━╃⊱ نــورت مــكــانــك ⊰╄━┄⋄┄━❖
+`;
 
-⌯︙⋄ 𝐃𝐄𝐕𝐄𝐋𝐎𝐏𝐄𝐑 ↫    Ꮥ.ᎥᏁᎨᎧ ⋄
+      await api.sendMessage(welcomeText, threadID);
 
-⌯︙⋄ 𝐁𝐎𝐓 𝐍𝐀𝐌𝐄 ↫『 افلين 』⋄ 
-
-⌯︙ ⋄🔑 𝐏𝐑𝐄𝐅𝐈𝐗 : 【 / 】⋄
-
-╰═══════  ═══════╯`;
-
-      // إرسال الرسالة مع الصورة
-      await api.sendMessage({
-        body: welcomeText,
-        attachment: fs.createReadStream(imagePath)
-      }, threadID, () => fs.unlinkSync(imagePath));
-
-      log('info', `Welcome message sent to ${threadID} for ${userName}`);
+      log('info', `User ${userName} joined ${threadID}`);
     } catch (error) {
       console.log('[API Error]', error.message);
       log('error', `Welcome event error: ${error.message}`);
