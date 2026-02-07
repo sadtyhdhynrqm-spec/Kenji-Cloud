@@ -5,18 +5,19 @@ const { log } = require('../../logger/logger');
 
 module.exports = {
     config: {
-        name: 'pair',
+        name: 'توأم',
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Pairs you with a random person from the group using a love image.',
+        description: 'يقوم بمطابقتك مع شخص عشوائي من المجموعة باستخدام صورة حب.',
         category: 'fun',
         guide: {
             en: '   {pn}'
         },
     },
+
     onStart: async ({ api, event }) => {
         const { threadID, senderID } = event;
 
@@ -25,7 +26,10 @@ module.exports = {
             const { participantIDs } = threadInfo;
 
             if (participantIDs.length < 2) {
-                return api.sendMessage("There aren't enough people in this group to find a pair.", threadID);
+                return api.sendMessage(
+                    "❌ لا يوجد عدد كافي من الأشخاص في هذه المجموعة لإيجاد توأم.",
+                    threadID
+                );
             }
 
             let partnerID;
@@ -37,8 +41,8 @@ module.exports = {
                 api.getUserInfo(senderID),
                 api.getUserInfo(partnerID)
             ]);
-            const senderName = senderInfo[senderID]?.name || 'Unknown';
-            const partnerName = partnerInfo[partnerID]?.name || 'Unknown';
+            const senderName = senderInfo[senderID]?.name || 'غير معروف';
+            const partnerName = partnerInfo[partnerID]?.name || 'غير معروف';
 
             const lovePercentage = Math.floor(Math.random() * 51) + 50;
 
@@ -46,33 +50,37 @@ module.exports = {
             const avatarPartnerUrl = `https://graph.facebook.com/${partnerID}/picture?width=400&height=400&access_token=6628568379|c1e620fa708a1d5696fb991c1bde5662`;
 
             const apiUrl = `https://hridoy-apis.vercel.app/canvas/love?avatar1=${encodeURIComponent(avatarSenderUrl)}&avatar2=${encodeURIComponent(avatarPartnerUrl)}&apikey=hridoyXQC`;
-            console.log(`[API Request] Sending to: ${apiUrl}`);
+            console.log(`[طلب API] ${apiUrl}`);
 
             const apiResponse = await axios.get(apiUrl, { responseType: 'arraybuffer' });
-            console.log(`[API Response] Status: ${apiResponse.status}, Status Text: ${apiResponse.statusText}`);
+            console.log(`[استجابة API] الحالة: ${apiResponse.status}, النص: ${apiResponse.statusText}`);
 
             const cacheDir = path.join(__dirname, '..', 'cache');
-            if (!fs.existsSync(cacheDir)) {
-                fs.mkdirSync(cacheDir);
-            }
+            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
             const imagePath = path.join(cacheDir, `pair_${senderID}_${partnerID}.png`);
             fs.writeFileSync(imagePath, Buffer.from(apiResponse.data, 'binary'));
 
-            const messageBody = `💕 Successful Pairing! 💕\n\n${senderName} & ${partnerName}\n\nLove Percentage: ${lovePercentage}%`;
-            api.sendMessage({
-                body: messageBody,
-                mentions: [
-                    { tag: senderName, id: senderID },
-                    { tag: partnerName, id: partnerID }
-                ],
-                attachment: fs.createReadStream(imagePath)
-            }, threadID, () => fs.unlinkSync(imagePath));
+            const messageBody = `💕 تم إيجاد التوأم بنجاح! 💕\n\n${senderName} & ${partnerName}\n\nنسبة الحب: ${lovePercentage}%`;
 
-            log('info', `Pair command executed by ${senderID} in thread ${threadID} with partner ${partnerID}`);
+            api.sendMessage(
+                {
+                    body: messageBody,
+                    mentions: [
+                        { tag: senderName, id: senderID },
+                        { tag: partnerName, id: partnerID }
+                    ],
+                    attachment: fs.createReadStream(imagePath)
+                },
+                threadID,
+                () => fs.unlinkSync(imagePath)
+            );
+
+            log('info', `أمر توأم تم تنفيذه بواسطة ${senderID} في المحادثة ${threadID} مع ${partnerID}`);
         } catch (error) {
-            console.error("Error in pair command:", error);
-            log('error', `Pair command error: ${error.message}`);
-            api.sendMessage("Sorry, an error occurred while creating your pair.", threadID);
+            console.error("خطأ في أمر التوأم:", error);
+            log('error', `خطأ أمر التوأم: ${error.message}`);
+            api.sendMessage("❌ حدث خطأ أثناء إنشاء التوأم.", threadID);
         }
     },
 };
