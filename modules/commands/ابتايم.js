@@ -4,16 +4,23 @@ const moment = require('moment');
 
 module.exports = {
   config: {
-    name: 'ابتايم ',
-    version: '1.0',
+    name: 'ابتايم',
+    version: '1.1',
     author: 'Hridoy',
-    description: 'Sends system, uptime, and other info',
+    description: 'معلومات التشغيل ووقت العمل',
     countDown: 5,
     prefix: true,
     category: 'utility',
   },
+
   onStart: async ({ api, event }) => {
     try {
+      // 1️⃣ رسالة مبدئية
+      const loadingMsg = await api.sendMessage(
+        '⏳ جاري جلب معلومات النظام...',
+        event.threadID
+      );
+
       // ====== Uptime ======
       const uptimeSeconds = process.uptime();
       const days = Math.floor(uptimeSeconds / (24 * 3600));
@@ -39,10 +46,10 @@ module.exports = {
         users: global.users?.length || 0,
         threads: global.threads?.length || 0,
         ping: Math.floor(performance.now()) + 'ms',
-        status: '⚠️ | ⊱𝑴𝗈𝖽𝖾𝗋𝖺𝗍𝖾 ⊱𝑳𝗈𝖺𝖽',
+        status: '🟢 | ⊱𝑺𝒕𝒂𝒃𝒍𝒆',
       };
 
-      // ====== Formatted Message ======
+      // ====== الرسالة النهائية ======
       const message = `
 ♡  ∩_∩
 （„• ֊ •„)♡
@@ -70,11 +77,12 @@ module.exports = {
 ╰───────────────⟡
 `;
 
-      // ====== Send Message ======
-      api.sendMessage(message, event.threadID);
+      // 2️⃣ تعديل نفس الرسالة
+      await api.editMessage(message, loadingMsg.messageID);
+
     } catch (error) {
-      console.error('Error sending sysinfo:', error);
-      api.sendMessage('حدث خطأ أثناء جلب المعلومات ⚠️', event.threadID);
+      console.error('Error sending uptime:', error);
+      api.sendMessage('⚠️ حصل خطأ أثناء جلب المعلومات', event.threadID);
     }
   },
 };
