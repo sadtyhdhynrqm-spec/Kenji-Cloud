@@ -22,7 +22,7 @@ module.exports = {
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
-        description: 'يعرض لك قائمة الأوامر أو تفاصيل أمر محدد.',
+        description: 'يعرض لك قائمة الأوامر أو تفاصيل أمر محدد مع صورة.',
         category: 'أدوات',
         guide: {
             ar: '   {pn}\n   {pn} <اسم_الأمر>'
@@ -55,9 +55,6 @@ module.exports = {
         // قائمة الأوامر الكاملة
         // =================================
         if (!commandName) {
-            const ownerName = config.ownerName || 'مجهول';
-            const botName = config.botName || 'بوتك';
-
             const categories = {};
             for (const cmd in commands) {
                 const c = commands[cmd];
@@ -69,39 +66,30 @@ module.exports = {
             for (const cat of Object.values(categories)) totalCommands += cat.size;
 
             let helpMessage = '';
-            helpMessage += `╔═✪🌟 ${botName.toUpperCase()} - قائمة الأوامر 🌟✪═╗\n\n`;
-            helpMessage += `👑 صاحب البوت: ${ownerName}\n`;
+            helpMessage += `•◌───˚❀˚─◌─˚❀˚───◌•◌───˚❀˚\n\n`;
+            helpMessage += `⌈ ${config.botName || 'بوتك'} ⌋\n`;
             helpMessage += `💻 عدد الأوامر: ${totalCommands}\n\n`;
 
             for (const [category, cmdsMap] of Object.entries(categories)) {
                 const cmds = Array.from(cmdsMap.values());
-                helpMessage += `🔹 ✦ ${category.toUpperCase()} ✦ 🔹\n`;
-
-                let line1 = '';
-                let line2 = '';
-                cmds.forEach((command, idx) => {
-                    const formattedName = `\`${command.name}\``.padEnd(12, ' ');
-                    if (idx < Math.ceil(cmds.length / 2)) {
-                        line1 += formattedName + ' | ';
-                    } else {
-                        line2 += formattedName + ' | ';
-                    }
+                helpMessage += `•◌────˚❀˚───◌ ────˚❀˚────\n\n`;
+                helpMessage += `⌈  ${category.toUpperCase()} ⌋\n`;
+                let line = '';
+                cmds.forEach(command => {
+                    line += `⋄ ${command.name} `;
                 });
-
-                helpMessage += (line1.trim().replace(/\|$/, '') || '') + '\n';
-                if (line2.trim()) helpMessage += (line2.trim().replace(/\|$/, '') || '') + '\n';
-                helpMessage += '\n';
+                helpMessage += line.trim() + '\n\n';
             }
 
-            helpMessage += `╚═✨ استخدم ${config.prefix}مساعدة <اسم_الأمر> لمعرفة التفاصيل ✨═╝`;
+            helpMessage += `•◌────˚❀˚───◌ ────˚❀˚────\n`;
+            helpMessage += `⇒ ℹ️ استخدم: ${config.prefix}مساعدة <اسم_الأمر> لعرض التفاصيل`;
 
-            // ارسال مع صورة (رابط الصورة لاحقاً)
-            const imageUrl = config.helpImage || null; // ضع رابط الصورة في config.json لاحقاً
-            if (imageUrl) {
-                return api.sendMessage({ body: helpMessage, attachment: await global.getStreamFromURL(imageUrl) }, event.threadID);
-            } else {
-                return api.sendMessage(helpMessage, event.threadID);
-            }
+            // ارسال مع الصورة اللي انت وريتنا
+            const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+            return api.sendMessage(
+                { body: helpMessage, attachment: await global.getStreamFromURL(imageUrl) },
+                event.threadID
+            );
 
         } else {
             // =================================
