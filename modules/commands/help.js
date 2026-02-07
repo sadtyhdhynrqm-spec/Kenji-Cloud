@@ -14,12 +14,6 @@ function readDB(filePath) {
     }
 }
 
-// تحويل رقم إلى رموز ①②③… (حتى 20 أمر تقريباً)
-function numberToCircle(num) {
-    const circleNums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
-    return circleNums[num - 1] || num;
-}
-
 module.exports = {
     config: {
         name: 'اوامر',
@@ -31,12 +25,12 @@ module.exports = {
         description: 'يعرض لك قائمة الأوامر أو تفاصيل أمر محدد.',
         category: 'أدوات',
         guide: {
-            ar: '   {pn}\n   {pn} <اسم_الأمر>\n   {pn} <رقم_القائمة>'
+            ar: '   {pn}\n   {pn} <اسم_الأمر>'
         },
     },
     onStart: async ({ api, event, args }) => {
         const config = readDB(configPath);
-        const input = args[0]; // ممكن يكون اسم أمر أو رقم القائمة
+        const input = args[0]; // ممكن يكون اسم أمر
 
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         const commands = {};
@@ -45,10 +39,10 @@ module.exports = {
             try {
                 const command = require(path.join(commandsPath, file));
                 if (command.config) {
-                    commands[command.config.name] = command.config;
+                    commands[command.config.name.toLowerCase()] = command.config;
                     if (command.config.aliases) {
                         for (const alias of command.config.aliases) {
-                            commands[alias] = command.config;
+                            commands[alias.toLowerCase()] = command.config;
                         }
                     }
                 }
@@ -57,44 +51,14 @@ module.exports = {
             }
         }
 
-        // =================================
-        // إذا كان المستخدم كتب رقم القائمة
-        // =================================
         const allCommands = Object.values(commands)
             .filter((cmd, index, self) => self.findIndex(c => c.name === cmd.name) === index)
             .map(c => c.name);
 
-        const totalCommands = allCommands.length;
-        const chunkSize = Math.ceil(totalCommands / 3);
-        const pages = [];
-        for (let i = 0; i < 3; i++) {
-            const commandsChunk = allCommands.slice(i * chunkSize, (i + 1) * chunkSize);
-            if (commandsChunk.length === 0) continue;
-
-            let message = `قائمة الأوامر ${i + 1}:\n\n`;
-            commandsChunk.forEach((cmd, idx) => {
-                message += `${numberToCircle(idx + 1)} ${cmd}\n`;
-            });
-
-            pages.push(message);
-        }
-
-        // =================================
-        // إذا كتب المستخدم رقم قائمة
-        // =================================
-        if (input && ['1','2','3'].includes(input)) {
-            const pageIndex = parseInt(input) - 1;
-            if (pages[pageIndex]) {
-                return api.sendMessage(pages[pageIndex], event.threadID);
-            } else {
-                return api.sendMessage(`❌ لا توجد قائمة بالأمر رقم ${input}`, event.threadID);
-            }
-        }
-
         // =================================
         // إذا كتب المستخدم اسم أمر محدد
         // =================================
-        if (input && !['1','2','3'].includes(input)) {
+        if (input && !allCommands.includes(input)) {
             const commandConfig = commands[input.toLowerCase()];
             if (commandConfig) {
                 let detailMessage = '';
@@ -117,8 +81,35 @@ module.exports = {
         }
 
         // =================================
-        // إذا لم يكتب المستخدم شيء: عرض القائمة 1 افتراضياً
+        // عرض كل الأوامر مع صورة
         // =================================
-        return api.sendMessage(pages[0], event.threadID);
+        const commandsList = allCommands.join(' ⎆ ');
+        const finalMessage = `❖━┄⋄┄━╃⊱𝑴𝑨𝑭𝑰⊰╄━┄⋄┄━❖\n${commandsList}`;
+        const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+
+        return api.sendMessage(
+            {
+                body: finalMessage,
+                attachment: fs.createReadStream(await downloadImage(imageURL))
+            },
+            event.threadID
+        );
     },
-                        }
+};
+
+// =================================
+// دالة مساعدة لتحميل الصورة مؤقتاً من الإنترنت
+// =================================
+const axios = require('axios');
+const fsExtra = require('fs-extra');
+
+async function downloadImage(url) {
+    const pathTemp = path.join(__dirname, 'temp_image.jpg');
+    const response = await axios({
+        url,
+        method: 'GET',
+        responseType: 'arraybuffer'
+    });
+    fsExtra.writeFileSync(pathTemp, response.data);
+    return pathTemp;
+            }
