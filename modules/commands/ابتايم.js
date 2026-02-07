@@ -5,7 +5,7 @@ const moment = require('moment');
 module.exports = {
   config: {
     name: 'ابتايم',
-    version: '1.1',
+    version: '1.2',
     author: 'Hridoy',
     description: 'معلومات التشغيل ووقت العمل',
     countDown: 5,
@@ -15,42 +15,49 @@ module.exports = {
 
   onStart: async ({ api, event }) => {
     try {
-      // 1️⃣ رسالة مبدئية
-      const loadingMsg = await api.sendMessage(
+
+      // 1️⃣ إرسال رسالة مبدئية + جلب messageID
+      api.sendMessage(
         '⏳ جاري جلب معلومات النظام...',
-        event.threadID
-      );
+        event.threadID,
+        async (err, info) => {
+          if (err || !info?.messageID) {
+            return api.sendMessage(
+              '⚠️ فشل إرسال رسالة التحميل',
+              event.threadID
+            );
+          }
 
-      // ====== Uptime ======
-      const uptimeSeconds = process.uptime();
-      const days = Math.floor(uptimeSeconds / (24 * 3600));
-      const hours = Math.floor((uptimeSeconds % (24 * 3600)) / 3600);
-      const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-      const seconds = Math.floor(uptimeSeconds % 60);
-      const uptime = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+          // ====== Uptime ======
+          const uptimeSeconds = process.uptime();
+          const days = Math.floor(uptimeSeconds / (24 * 3600));
+          const hours = Math.floor((uptimeSeconds % (24 * 3600)) / 3600);
+          const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+          const seconds = Math.floor(uptimeSeconds % 60);
+          const uptime = `${days}d ${hours}h ${minutes}m ${seconds}s`;
 
-      // ====== System Info ======
-      const systemInfo = {
-        os: `${os.type()} ${os.arch()}`,
-        node: process.version,
-        cpu: os.cpus()[0].model,
-        storage: (os.freemem() / 1024 / 1024 / 1024).toFixed(2) + ' GB',
-        cpuUsage: (process.cpuUsage().user / 1000000).toFixed(2) + ' %',
-        ramUsage: (process.memoryUsage().rss / 1024 / 1024).toFixed(2) + ' MB',
-      };
+          // ====== System Info ======
+          const systemInfo = {
+            os: `${os.type()} ${os.arch()}`,
+            node: process.version,
+            cpu: os.cpus()[0].model,
+            storage: (os.freemem() / 1024 / 1024 / 1024).toFixed(2) + ' GB',
+            cpuUsage: (process.cpuUsage().user / 1000000).toFixed(2) + ' %',
+            ramUsage: (process.memoryUsage().rss / 1024 / 1024).toFixed(2) + ' MB',
+          };
 
-      // ====== Other Info ======
-      const otherInfo = {
-        date: moment().format('MMM D, YYYY'),
-        time: moment().format('hh:mm:ss A'),
-        users: global.users?.length || 0,
-        threads: global.threads?.length || 0,
-        ping: Math.floor(performance.now()) + 'ms',
-        status: '🟢 | ⊱𝑺𝒕𝒂𝒃𝒍𝒆',
-      };
+          // ====== Other Info ======
+          const otherInfo = {
+            date: moment().format('MMM D, YYYY'),
+            time: moment().format('hh:mm:ss A'),
+            users: global.users?.length || 0,
+            threads: global.threads?.length || 0,
+            ping: Math.floor(performance.now()) + 'ms',
+            status: '🟢 | ⊱𝑺𝒕𝒂𝒃𝒍𝒆',
+          };
 
-      // ====== الرسالة النهائية ======
-      const message = `
+          // ====== الرسالة النهائية ======
+          const finalMessage = `
 ♡  ∩_∩
 （„• ֊ •„)♡
 ╭─∪∪────────────⟡
@@ -77,12 +84,14 @@ module.exports = {
 ╰───────────────⟡
 `;
 
-      // 2️⃣ تعديل نفس الرسالة
-      await api.editMessage(message, loadingMsg.messageID);
+          // 2️⃣ تعديل نفس الرسالة
+          api.editMessage(finalMessage, info.messageID);
+        }
+      );
 
     } catch (error) {
-      console.error('Error sending uptime:', error);
-      api.sendMessage('⚠️ حصل خطأ أثناء جلب المعلومات', event.threadID);
+      console.error('Error uptime:', error);
+      api.sendMessage('⚠️ حصل خطأ أثناء التنفيذ', event.threadID);
     }
   },
 };
