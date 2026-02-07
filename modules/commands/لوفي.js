@@ -4,27 +4,27 @@ const path = require('path');
 
 module.exports = {
     config: {
-        name: "onepeace",
+        name: "لوفي",
         version: "1.0",
         author: "Hridoy",
         countDown: 10,
         prefix: true,
         groupAdminOnly: false,
-        description: "Sends a random One Piece image.",
+        description: "إرسال صورة عشوائية من ون بيس.",
         category: "random",
         guide: {
-            en: "   {pn}onepeace: Get a random One Piece image."
+            en: "   {pn}لوفي: الحصول على صورة عشوائية من ون بيس."
         }
     },
+
     onStart: async ({ api, event }) => {
         try {
             const threadId = event.threadID;
-
             const apiUrl = `https://hridoy-apis.vercel.app/random/onepiece?apikey=hridoyXQC`;
-            console.log(`[API Request] Sending to: ${apiUrl}`);
+            console.log(`[طلب API] ${apiUrl}`);
 
             const apiResponse = await axios.get(apiUrl, { responseType: 'json' });
-            console.log(`[API Response] Status: ${apiResponse.status}, Status Text: ${apiResponse.statusText}, Data: ${JSON.stringify(apiResponse.data)}`);
+            console.log(`[استجابة API] الحالة: ${apiResponse.status}, البيانات: ${JSON.stringify(apiResponse.data)}`);
 
             if (apiResponse.data.url) {
                 const imageUrl = apiResponse.data.url;
@@ -36,7 +36,7 @@ module.exports = {
 
                 await api.sendMessage(
                     {
-                        body: `🖼️ Random One Piece Image: ${apiResponse.data.name || 'Unknown'}`,
+                        body: `🖼️ صورة عشوائية من ون بيس: ${apiResponse.data.name || 'غير معروف'}`,
                         attachment: fs.createReadStream(tempPath),
                     },
                     threadId
@@ -44,11 +44,11 @@ module.exports = {
 
                 await fs.unlink(tempPath);
             } else {
-                throw new Error('No image URL found in API response');
+                throw new Error('لم يتم العثور على رابط الصورة من API');
             }
         } catch (error) {
-            console.error('Error in onepeace command:', error);
-            api.sendMessage('❌ Failed to fetch the One Piece image.', event.threadID);
+            console.error('خطأ في أمر لوفي:', error);
+            api.sendMessage('❌ فشل في جلب صورة من ون بيس.', event.threadID);
         }
     }
 };
