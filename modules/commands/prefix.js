@@ -6,33 +6,52 @@ module.exports = {
     version: '1.0',
     author: 'Hridoy',
     countDown: 5,
-    prefix: false, 
-    description: 'Displays bot and group prefix, total users, and total threads.',
+    prefix: false, // يشتغل بدون بادئة
+    description: 'يعرض البادئة الخاصة بالبوت والمجموعة، وعدد المستخدمين والمجموعات.',
     category: 'utility',
     guide: {
-      en: '   {pn}'
+      en: '   {pn} [show/setprefix]'
     },
   },
-  onStart: async ({ api, event }) => {
-    try {
-      const botPrefix = global.client.config.prefix;
-      const threadData = Threads.get(event.threadID);
-      const groupPrefix = threadData?.settings?.prefix || 'Not set (using bot default)';
 
+  onStart: async ({ api, event, args }) => {
+    try {
+      const threadID = event.threadID;
+      const threadData = Threads.get(threadID) || {};
+      threadData.settings = threadData.settings || {};
+
+      // البادئة الحالية (يمكن أن تكون فارغة)
+      const groupPrefix = threadData.settings.prefix || '';
+
+      // أمر لتغيير البادئة
+      if (args[0] === 'setprefix') {
+        if (!event.isGroup) return api.sendMessage('هذا الأمر خاص بالمجموعات فقط.', threadID);
+        if (!args[1]) return api.sendMessage('أرسل البادئة الجديدة.', threadID);
+
+        // تحديث البادئة
+        threadData.settings.prefix = args[1];
+        Threads.set(threadID, threadData);
+
+        return api.sendMessage(`تم تغيير البادئة للمجموعة إلى: ${args[1] || 'فارغة (بدون بادئة)'}`, threadID);
+      }
+
+      // عرض معلومات البوت والبادئة
+      const botPrefix = global.client.config.prefix || '';
       const totalUsers = Object.keys(Users.getAll()).length;
       const totalThreads = Object.keys(Threads.getAll()).length;
 
-      const message = `--- Bot Information ---\n` +
-                      `Bot Prefix: ${botPrefix}\n` +
-                      `Group Prefix: ${groupPrefix}\n` +
-                      `Total Users: ${totalUsers}\n` +
-                      `Total Threads: ${totalThreads}`;
+      const message = `--- معلومات البوت ---\n` +
+                      `بادئة البوت: ${botPrefix || 'فارغة (بدون بادئة)'}\n` +
+                      `بادئة المجموعة: ${groupPrefix || 'فارغة (بدون بادئة)'}\n` +
+                      `إجمالي المستخدمين: ${totalUsers}\n` +
+                      `إجمالي المجموعات: ${totalThreads}\n\n` +
+                      `لتغيير البادئة: ${groupPrefix || 'فارغة'} setprefix [البادئة الجديدة]`;
 
-      api.sendMessage(message, event.threadID);
+      api.sendMessage(message, threadID);
 
     } catch (error) {
-      console.error("Error in prefix command:", error);
-      api.sendMessage('An error occurred while fetching prefix information.', event.threadID);
+      console.error("حدث خطأ في أمر البادئة:", error);
+      api.sendMessage('حدث خطأ أثناء جلب معلومات البادئة.', event.threadID);
     }
-  },
+  }
 };
