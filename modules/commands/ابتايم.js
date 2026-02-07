@@ -4,7 +4,7 @@ const moment = require('moment');
 
 module.exports = {
   config: {
-    name: 'sysinfo',
+    name: 'ابتايم ',
     version: '1.1',
     author: 'Hridoy',
     description: 'Sends system, uptime, and other info by editing a single message',
