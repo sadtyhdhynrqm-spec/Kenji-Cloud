@@ -1,52 +1,85 @@
+const axios = require('axios');
+
 module.exports = {
   config: {
     name: 'بانكاي',
-    version: '1.0',
+    version: '1.1',
     author: 'Hridoy',
     countDown: 5,
     prefix: true,
-    groupAdminOnly: true, 
+    groupAdminOnly: true,
     description: 'يقوم بطرد عضو من المجموعة.',
     category: 'group',
     guide: {
-      ar: '   {pn} [UID|@mention]'
+      ar: '{pn} @منشن | UID | بالرد على رسالة'
     },
   },
+
   onStart: async ({ api, event, args }) => {
     try {
-      let targetID;
+      let targetID = null;
 
-      // الحصول على الـ UID من المنشن أو من الوسيطات
+      // 1️⃣ لو في منشن
       if (event.mentions && Object.keys(event.mentions).length > 0) {
         targetID = Object.keys(event.mentions)[0];
-      } else if (args.length > 0) {
+      }
+
+      // 2️⃣ لو الأمر بالرد على رسالة
+      else if (event.messageReply) {
+        targetID = event.messageReply.senderID;
+      }
+
+      // 3️⃣ لو كتب UID مباشر
+      else if (args[0]) {
         targetID = args[0];
-      } else {
-        return api.sendMessage('الرجاء تحديد UID أو منشن المستخدم لطرده.', event.threadID);
       }
 
+      // لو ما في أي هدف
       if (!targetID) {
-        return api.sendMessage('المستخدم المحدد غير صالح للطرد.', event.threadID);
+        return api.sendMessage(
+          '❌ استخدم الأمر مع منشن أو UID أو بالرد على رسالة.',
+          event.threadID,
+          event.messageID
+        );
       }
 
-      // رابط الصورة التي ستظهر قبل الطرد
-      const imageUrl = 'https://i.imgur.com/yourImage.png'; // ضع رابط صورتك هنا
+      // رابط الصورة
+      const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
 
-      // إرسال الصورة قبل الطرد
-      api.sendMessage({ body: `تحذير! سيتم طرد هذا المستخدم.`, attachment: await require('axios')({ url: imageUrl, responseType: 'arraybuffer' }).then(res => Buffer.from(res.data, 'binary')) }, event.threadID, async () => {
-        // بعد إرسال الصورة مباشرة، طرد المستخدم
-        api.removeUserFromGroup(targetID, event.threadID, (err) => {
-          if (err) {
-            console.error("فشل في طرد المستخدم:", err);
-            return api.sendMessage('فشل في طرد المستخدم. تأكد من أن البوت مشرف في هذه المجموعة.', event.threadID);
-          }
-          api.sendMessage(`تم طرد المستخدم بنجاح: ${targetID}`, event.threadID);
-        });
+      // تحميل الصورة
+      const img = await axios.get(imageUrl, { responseType: 'stream' });
+
+      // إرسال التحذير مع الصورة
+      await api.sendMessage(
+        {
+          body: '⚠️ بانكاي مفعل!\nسيتم طرد العضو الآن...',
+          attachment: img.data
+        },
+        event.threadID
+      );
+
+      // طرد المستخدم
+      api.removeUserFromGroup(targetID, event.threadID, (err) => {
+        if (err) {
+          console.error(err);
+          return api.sendMessage(
+            '❌ فشل الطرد، تأكد أن البوت مشرف.',
+            event.threadID
+          );
+        }
+
+        api.sendMessage(
+          `هنفتقدو 🦆.`,
+          event.threadID
+        );
       });
 
-    } catch (error) {
-      console.error("حدث خطأ في أمر البانكاي:", error);
-      api.sendMessage('حدث خطأ أثناء محاولة طرد المستخدم.', event.threadID);
+    } catch (err) {
+      console.error('خطأ أمر بانكاي:', err);
+      api.sendMessage(
+        '❌ حدث خطأ غير متوقع.',
+        event.threadID
+      );
     }
-  },
+  }
 };
