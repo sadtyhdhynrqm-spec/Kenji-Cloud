@@ -1,35 +1,51 @@
+const { log } = require('../../logger/logger');
+const axios = require('axios');
+const fs = require('fs-extra');
+
 module.exports = {
   config: {
-    name: 'botJoinedGroup',
+    name: 'welcome',
     version: '1.0',
     author: 'Hridoy',
-    description: 'Sets bot nickname when added to a new group.',
-    eventType: ['log:subscribe'], 
+    eventType: ['log:subscribe']
   },
-  onStart: async ({ api, event }) => {
+  onStart: async ({ event, api }) => {
     try {
-      const { Threads } = require('../../database/database');
-      console.log('botJoinedGroup event triggered');
-      const botID = await api.getCurrentUserID();
-      const addedParticipants = event.logMessageData.addedParticipants;
+      const { threadID, logMessageData } = event;
+      const thread = await api.getThreadInfo(threadID);
+      const newUser = logMessageData.addedParticipants[0];
+      const uid = newUser.userFbId;
+      const userInfo = await api.getUserInfo(uid);
+      const userName = userInfo[uid].name;
+      const userImageUrl = `https://graph.facebook.com/${uid}/picture?width=512&height=512&access_token=6628568379|c1e620fa708a1d5696fb991c1bde5662`;
+      const memberCount = thread.participantIDs.length;
 
-      if (addedParticipants && addedParticipants.some(p => p.userFbId === botID)) {
-        console.log('Bot has been added to the group');
-        
-        // Ensure thread is created in database
-        await Threads.create(event.threadID, "New Group");
-        
-        const botName = global.client.config.botName || 'Kenji Cloud';
-        api.changeNickname(botName, event.threadID, botID, (err) => {
-          if (err) {
-            console.error("Failed to change bot nickname:", err);
-          }
-        });
-        
-        api.sendMessage(`Connected successfully! Type ${global.client.config.prefix}help to see commands.`, event.threadID);
+      const style = Math.floor(Math.random() * 5) + 1;
+      const apiUrl = `https://hridoy-apis.vercel.app/canvas/welcome-v4?avatarImgURL=${encodeURIComponent(userImageUrl)}&nickname=${encodeURIComponent(userName)}&mainText=${encodeURIComponent('Welcome')}&secondText=${encodeURIComponent(`Welcome to ${thread.threadName} with ${memberCount} members`)}&style=${style}&apikey=hridoyXQC`;
+      console.log(`[API Request] Sending to: ${apiUrl}`);
+
+      const apiResponse = await axios.get(apiUrl, { responseType: 'arraybuffer' });
+      console.log(`[API Response] Status: ${apiResponse.status}, Status Text: ${apiResponse.statusText}`);
+
+      const cacheDir = __dirname + '/cache';
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir);
       }
+      const imagePath = `${cacheDir}/welcome_card.png`;
+      fs.writeFileSync(imagePath, Buffer.from(apiResponse.data, 'binary'));
+
+      // الرسالة الجديدة للأعضاء الجدد
+      const welcomeText = `اهلا تـــم تــصال ابـــــــلين  بـادئة الـخاصه بي هي "${global.client.config.prefix}"`;
+
+      await api.sendMessage({
+        body: welcomeText,
+        attachment: fs.createReadStream(imagePath)
+      }, threadID, () => fs.unlinkSync(imagePath));
+
+      log('info', `Welcome message sent to ${threadID} for ${userName}`);
     } catch (error) {
-      console.error("Error in botJoinedGroup event:", error);
+      console.log('[API Error]', error.message);
+      log('error', `Welcome event error: ${error.message}`);
     }
   },
 };
