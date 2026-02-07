@@ -63,7 +63,7 @@ module.exports = {
 ⌯︙👥 عدد الأعضاء الآن ↫ 『 ${memberCount} 』
 ⌯︙💬 نتمنى لك وقت جميل معنا
 
-❖━┄⋄┄━╃⊱ نــورت مــكــانــك ⊰╄━┄⋄┄━❖
+❖━┄⋄┄━╃⊱ نــورت  ⊰╄━┄⋄┄━❖
 `;
 
       await api.sendMessage(welcomeText, threadID);
