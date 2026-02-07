@@ -4,16 +4,16 @@ const axios = require('axios');
 
 module.exports = {
     config: {
-        name: 'rmv',
+        name: 'إزالة', // تم تغيير اسم الأمر
         version: '1.0',
         author: 'Hridoy',
         countDown: 10,
         prefix: true,
         groupAdminOnly: false,
-        description: 'Removes background from an image. Reply to an image or mention a user to remove their profile background.',
+        description: 'يزيل الخلفية من الصورة. قم بالرد على صورة أو اذكر مستخدم لإزالة خلفية صورته.',
         category: 'image',
         guide: {
-            en: '   {pn}rmv [reply to an image] or {pn}rmv [/@mention|uid]'
+            ar: 'اكتب {pn}بلين [الرد على صورة] أو {pn}بلين [/@ذكر|رقم المعرف]'
         },
     },
     onStart: async ({ api, event }) => {
@@ -21,11 +21,15 @@ module.exports = {
         let imageUrl;
         let targetIDForFilename = senderID;
 
-        
-        if (messageReply && messageReply.attachments && messageReply.attachments.length > 0 && ['photo', 'sticker'].includes(messageReply.attachments[0].type)) {
-            imageUrl = messageReply.attachments[0].url;
-            targetIDForFilename = messageReply.senderID;
+        // التحقق من الصورة في الرد
+        if (messageReply && messageReply.attachments?.length) {
+            const type = messageReply.attachments[0].type;
+            if (type.startsWith('image')) {
+                imageUrl = messageReply.attachments[0].url;
+                targetIDForFilename = messageReply.senderID;
+            }
         } else {
+            // التحقق من ذكر المستخدم أو ID
             let targetID = senderID;
             if (Object.keys(mentions).length > 0) {
                 targetID = Object.keys(mentions)[0];
@@ -38,37 +42,38 @@ module.exports = {
         }
 
         if (!imageUrl) {
-            return api.sendMessage("Please reply to an image or mention a user to remove the background of their profile picture.", event.threadID);
+            return api.sendMessage("⚠️ الرجاء الرد على صورة أو ذكر مستخدم لإزالة الخلفية.", event.threadID);
         }
 
         const apiUrl = `https://hridoy-apis.vercel.app/tools/removebg?url=${encodeURIComponent(imageUrl)}&apikey=hridoyXQC`;
 
         try {
-            api.sendMessage("✅ | Removing background from image, please wait...", event.threadID);
-            console.log(`[API Request] Sending to: ${apiUrl}`);
+            api.sendMessage("⏳ جاري إزالة الخلفية من الصورة، يرجى الانتظار...", event.threadID);
+            console.log(`[طلب API] إرسال إلى: ${apiUrl}`);
+
             const response = await axios.get(apiUrl);
-            console.log(`[API Response] Status: ${response.status}, Status Text: ${response.statusText}`);
+            console.log(`[رد API] الحالة: ${response.status}, النص: ${response.statusText}`);
 
             if (response.data && response.data.status && response.data.result) {
                 const bgRemovedImageResponse = await axios.get(response.data.result, { responseType: 'arraybuffer' });
-                
+
                 const cacheDir = path.join(__dirname, 'cache');
-                if (!fs.existsSync(cacheDir)) {
-                    fs.mkdirSync(cacheDir);
-                }
-                const imagePath = path.join(cacheDir, `rmv_${targetIDForFilename}_${Date.now()}.png`);
+                if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
+                const imagePath = path.join(cacheDir, `بلين_${targetIDForFilename}_${Date.now()}.png`);
                 fs.writeFileSync(imagePath, Buffer.from(bgRemovedImageResponse.data, 'binary'));
 
                 api.sendMessage({
                     attachment: fs.createReadStream(imagePath)
                 }, event.threadID, () => fs.unlinkSync(imagePath));
+
             } else {
-                api.sendMessage("Failed to remove the background. The API may be down or the image format is not supported.", event.threadID);
+                api.sendMessage("❌ فشل في إزالة الخلفية. ربما الخدمة متوقفة أو نوع الصورة غير مدعوم.", event.threadID);
             }
 
         } catch (error) {
-            console.error("Error generating or sending background removed image:", error);
-            api.sendMessage("Sorry, an error occurred while processing the image. Please try again later.", event.threadID);
+            console.error("خطأ أثناء معالجة الصورة:", error);
+            api.sendMessage("⚠️ حدث خطأ أثناء معالجة الصورة. حاول مرة أخرى لاحقًا.", event.threadID);
         }
     }
 };
