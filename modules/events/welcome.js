@@ -5,9 +5,9 @@ const fs = require('fs-extra');
 module.exports = {
   config: {
     name: 'welcome',
-    version: '1.2',
+    version: '1.3',
     author: 'Hridoy',
-    eventType: ['log:subscribe']
+    eventType: ['log:subscribe'] // يتابع انضمام أي شخص أو البوت
   },
 
   onStart: async ({ event, api }) => {
@@ -15,48 +15,50 @@ module.exports = {
       const { threadID, logMessageData } = event;
       const botID = api.getCurrentUserID();
 
-      // الشخص/الكيان المضاف
-      const added = logMessageData.addedParticipants[0];
-      const addedID = added.userFbId;
+      // كل الأشخاص اللي اتضافوا
+      const addedParticipants = logMessageData.addedParticipants;
 
-      // ===============================
-      // 1️⃣ إذا البوت نفسه اتضاف
-      // ===============================
-      if (addedID === botID) {
-        const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+      for (let added of addedParticipants) {
+        const addedID = added.userFbId;
 
-        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const cacheDir = __dirname + '/cache';
-        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+        // ===============================
+        // 1️⃣ إذا البوت نفسه اتضاف
+        // ===============================
+        if (addedID === botID) {
+          const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+          const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
 
-        const imagePath = `${cacheDir}/bot_join.png`;
-        fs.writeFileSync(imagePath, Buffer.from(response.data));
+          const cacheDir = __dirname + '/cache';
+          if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
 
-        const botWelcome = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
-⌯︙  تـم الاتـصال بـنجاح ✅
+          const imagePath = `${cacheDir}/bot_join.png`;
+          fs.writeFileSync(imagePath, Buffer.from(response.data));
+
+          const botWelcome = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
+⌯︙تـم الاتـصال بـنجاح ✅
 
 اســـم البوت ⎆﹝ابلين ﹞⋄〚 ! 〛
 
 ⌯︙استخدم البادئة! للتحكم بالأوامر
 ❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`;
 
-        await api.sendMessage({
-          body: botWelcome,
-          attachment: fs.createReadStream(imagePath)
-        }, threadID, () => fs.unlinkSync(imagePath));
+          await api.sendMessage({
+            body: botWelcome,
+            attachment: fs.createReadStream(imagePath)
+          }, threadID, () => fs.unlinkSync(imagePath));
 
-        return; // مهم جداً
-      }
+          continue; // يروح للعضو التالي لو موجود
+        }
 
-      // ===============================
-      // 2️⃣ إذا عضو عادي اتضاف
-      // ===============================
-      const thread = await api.getThreadInfo(threadID);
-      const userInfo = await api.getUserInfo(addedID);
-      const userName = userInfo[addedID].name;
-      const memberCount = thread.participantIDs.length;
+        // ===============================
+        // 2️⃣ إذا عضو عادي اتضاف
+        // ===============================
+        const thread = await api.getThreadInfo(threadID);
+        const userInfo = await api.getUserInfo(addedID);
+        const userName = userInfo[addedID].name;
+        const memberCount = thread.participantIDs.length;
 
-      const welcomeText = `
+        const welcomeText = `
 ❖━┄⋄┄━╃⊱ اهـــــلــيــن ⊰╄━┄⋄┄━❖
 
 ⌯︙🌸 نورت القروب يا 『 ${userName} 』
@@ -66,9 +68,10 @@ module.exports = {
 ❖━┄⋄┄━╃⊱ نــورت  ⊰╄━┄⋄┄━❖
 `;
 
-      await api.sendMessage(welcomeText, threadID);
+        await api.sendMessage(welcomeText, threadID);
 
-      log('info', `User ${userName} joined ${threadID}`);
+        log('info', `User ${userName} joined ${threadID}`);
+      }
     } catch (error) {
       console.log('[API Error]', error.message);
       log('error', `Welcome event error: ${error.message}`);
