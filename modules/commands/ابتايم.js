@@ -4,19 +4,16 @@ const moment = require('moment');
 
 module.exports = {
   config: {
-    name: 'ابتايم ',
-    version: '1.1',
+    name: 'sysinfo',
+    version: '1.0',
     author: 'Hridoy',
-    description: 'Sends system, uptime, and other info by editing a single message',
+    description: 'Sends system, uptime, and other info',
     countDown: 5,
     prefix: true,
     category: 'utility',
   },
   onStart: async ({ api, event }) => {
     try {
-      // ====== Send initial loading message ======
-      const loadingMessage = await api.sendMessage('⏳ ⊱𝑳𝑶𝑨𝑫𝑰𝑵𝑮 𝑺𝒀𝑺𝑻𝑬𝑴 𝑰𝑵𝑭𝑶...', event.threadID);
-
       // ====== Uptime ======
       const uptimeSeconds = process.uptime();
       const days = Math.floor(uptimeSeconds / (24 * 3600));
@@ -46,9 +43,9 @@ module.exports = {
       };
 
       // ====== Formatted Message ======
-      const finalMessage = `
+      const message = `
 ♡  ∩_∩
-（„• ֊ •„)♡©
+（„• ֊ •„)♡
 ╭─∪∪────────────⟡
 │ ⊱𝑼𝑷𝑻𝑰𝑴𝑬 ⊱𝑰𝑵𝑭𝑶
 ├───────────────⟡
@@ -73,10 +70,8 @@ module.exports = {
 ╰───────────────⟡
 `;
 
-      // ====== Edit initial message with final info ======
-      setTimeout(() => {
-        api.editMessage(finalMessage, loadingMessage.messageID, event.threadID);
-      }, 2000); // 2 seconds delay
+      // ====== Send Message ======
+      api.sendMessage(message, event.threadID);
     } catch (error) {
       console.error('Error sending sysinfo:', error);
       api.sendMessage('حدث خطأ أثناء جلب المعلومات ⚠️', event.threadID);
