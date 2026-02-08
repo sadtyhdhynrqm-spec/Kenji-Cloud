@@ -1,80 +1,107 @@
 const { log } = require('../../logger/logger');
-const axios = require('axios');
-const fs = require('fs-extra');
+
+// نخزن القروبات اللي رحبنا فيها بالبوت
+const greetedThreads = new Set();
+
+// نخزن الأعضاء اللي رحبنا بيهم
+const welcomedUsers = new Set();
 
 module.exports = {
   config: {
     name: 'welcome',
-    version: '1.3',
-    author: 'Hridoy',
-    eventType: ['log:subscribe'] // يتابع انضمام أي شخص أو البوت
+    version: '2.2',
+    author: 'Hridoy + Fixed',
+    eventType: ['log:subscribe']
   },
 
+  // ==================================
+  // 1️⃣ حدث الانضمام (بوت + أعضاء)
+  // ==================================
   onStart: async ({ event, api }) => {
     try {
+      if (event.logMessageType !== 'log:subscribe') return;
+
       const { threadID, logMessageData } = event;
       const botID = api.getCurrentUserID();
+      if (!logMessageData?.addedParticipants) return;
 
-      // كل الأشخاص اللي اتضافوا
-      const addedParticipants = logMessageData.addedParticipants;
-
-      for (let added of addedParticipants) {
+      for (const added of logMessageData.addedParticipants) {
         const addedID = added.userFbId;
 
-        // ===============================
-        // 1️⃣ إذا البوت نفسه اتضاف
-        // ===============================
+        // ---------- لو البوت ----------
         if (addedID === botID) {
-          const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
-          const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-
-          const cacheDir = __dirname + '/cache';
-          if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-
-          const imagePath = `${cacheDir}/bot_join.png`;
-          fs.writeFileSync(imagePath, Buffer.from(response.data));
-
-          const botWelcome = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
-⌯︙تـم الاتـصال بـنجاح ✅
-
-اســـم البوت ⎆﹝ابلين ﹞⋄〚 ! 〛
-
-⌯︙استخدم البادئة! للتحكم بالأوامر
-❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`;
-
-          await api.sendMessage({
-            body: botWelcome,
-            attachment: fs.createReadStream(imagePath)
-          }, threadID, () => fs.unlinkSync(imagePath));
-
-          continue; // يروح للعضو التالي لو موجود
+          if (!greetedThreads.has(threadID)) {
+            await sendBotWelcome(api, threadID);
+            greetedThreads.add(threadID);
+          }
+          continue;
         }
 
-        // ===============================
-        // 2️⃣ إذا عضو عادي اتضاف
-        // ===============================
-        const thread = await api.getThreadInfo(threadID);
-        const userInfo = await api.getUserInfo(addedID);
-        const userName = userInfo[addedID].name;
-        const memberCount = thread.participantIDs.length;
+        // ---------- عضو عادي ----------
+        await sendUserWelcome(api, threadID, addedID);
+      }
+    } catch (error) {
+      log('error', `Welcome event error: ${error.message}`);
+    }
+  },
 
-        const welcomeText = `
+  // =================================================
+  // 2️⃣ fallback لإضافة البوت (أول رسالة من البوت)
+  // =================================================
+  handleEvent: async ({ event, api }) => {
+    try {
+      const botID = api.getCurrentUserID();
+
+      // fallback خاص بالبوت فقط
+      if (event.senderID !== botID) return;
+      if (greetedThreads.has(event.threadID)) return;
+
+      await sendBotWelcome(api, event.threadID);
+      greetedThreads.add(event.threadID);
+    } catch (_) {}
+  }
+};
+
+// ==================================
+// رسالة ترحيب البوت (نص فقط)
+// ==================================
+async function sendBotWelcome(api, threadID) {
+  const message = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
+⌯︙تـم الاتـصال بـنجاح ✅
+
+⌯︙اســم البوت ⎆﹝ ابلين ﹞
+⌯︙استخدم البادئة ! للتحكم بالأوامر
+
+❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`;
+
+  await api.sendMessage(message, threadID);
+  log('info', `Bot welcomed in ${threadID}`);
+}
+
+// ==================================
+// رسالة ترحيب الأعضاء (نص فقط)
+// ==================================
+async function sendUserWelcome(api, threadID, userID) {
+  if (welcomedUsers.has(userID + threadID)) return;
+
+  const userInfo = await api.getUserInfo(userID);
+  const thread = await api.getThreadInfo(threadID);
+
+  const userName = userInfo[userID]?.name || 'عضو جديد';
+  const memberCount = thread.participantIDs.length;
+
+  const text = `
 ❖━┄⋄┄━╃⊱ اهـــــلــيــن ⊰╄━┄⋄┄━❖
 
 ⌯︙🌸 نورت القروب يا 『 ${userName} 』
 ⌯︙👥 عدد الأعضاء الآن ↫ 『 ${memberCount} 』
 ⌯︙💬 نتمنى لك وقت جميل معنا
 
-❖━┄⋄┄━╃⊱ نــورت  ⊰╄━┄⋄┄━❖
+❖━┄⋄┄━╃⊱ نــورت ⊰╄━┄⋄┄━❖
 `;
 
-        await api.sendMessage(welcomeText, threadID);
+  await api.sendMessage(text, threadID);
+  welcomedUsers.add(userID + threadID);
 
-        log('info', `User ${userName} joined ${threadID}`);
-      }
-    } catch (error) {
-      console.log('[API Error]', error.message);
-      log('error', `Welcome event error: ${error.message}`);
-    }
-  },
-};
+  log('info', `User ${userName} welcomed in ${threadID}`);
+  }
