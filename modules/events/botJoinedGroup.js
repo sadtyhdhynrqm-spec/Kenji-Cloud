@@ -1,50 +1,63 @@
 module.exports = {
   config: {
     name: 'botJoinedGroup',
-    version: '1.2',
-    author: 'Hridoy',
-    description: 'Sets bot nickname and initializes database when added to a new group with fancy welcome.',
-    eventType: ['log:subscribe'], 
+    version: '1.3',
+    author: 'Hridoy + Fix by ChatGPT',
+    description: 'Sets bot nickname and sends fancy welcome message when added to a group.',
+    eventType: ['log:subscribe'],
   },
+
   onStart: async ({ api, event }) => {
     try {
       const { Threads } = require('../../database/database');
-      const botID = await api.getCurrentUserID();
-      const addedParticipants = event.logMessageData.addedParticipants;
 
-      console.log("Added Participants:", addedParticipants);
-      console.log("Bot ID:", botID);
+      const botID = api.getCurrentUserID();
+      const addedParticipants = event.logMessageData?.addedParticipants || [];
 
-      // تحقق إذا تم إضافة البوت
-      if (addedParticipants?.some(p => p.id === botID)) {
-        await Threads.create(event.threadID, "New Group");
-        
-        const botName = global.client.config.botName || 'Kenji Cloud';
-        api.changeNickname(botName, event.threadID, botID, (err) => {
-          if (err) console.error("Failed to change bot nickname:", err);
-        });
+      console.log('[JOIN EVENT] Bot ID:', botID);
+      console.log('[JOIN EVENT] Added:', addedParticipants);
 
-        // رسالة ترحيب فخمة وآمنة
-        const welcomeMsg = `
+      // تحقق إذا البوت اتضاف
+      const isBotAdded = addedParticipants.some(
+        user => user.userFbId === botID
+      );
+
+      if (!isBotAdded) return;
+
+      // إنشاء بيانات القروب
+      await Threads.create(event.threadID, 'New Group');
+
+      const botName = global.client.config.botName || 'Kenji Cloud';
+      const prefix = global.client.config.prefix || '!';
+
+      // محاولة تغيير الكنية (حتى لو فشلت ما توقف الكود)
+      api.changeNickname(botName, event.threadID, botID, err => {
+        if (err) {
+          console.log('[WARN] Bot is not admin, nickname not changed');
+        }
+      });
+
+      const welcomeMsg = `
 ◈━━━━━━━★━━━━━━━◈
-🌟 ✅ تم الاتصال بنجاح!
-💠 اسـم البوت: ${botName}
-💠 استخدم ${global.client.config.prefix} للتحكم بالأوامر
-✨ نتمنى لكم وقت ممتع مع البوت!
+🌟 تم تفعيل البوت بنجاح
+🤖 اسم البوت: ${botName}
+🔰 البادئة: ${prefix}
+🧭 اكتب ${prefix}help لعرض الأوامر
 ◈━━━━━━━★━━━━━━━◈
-┏━⊱🔹الــــمـطــــــــــوࢪ🔹⊰━┓
-┃  سـينكو ➤   الـمطوࢪ 
-┃   17   ➤  الـعمࢪ
-┃صلو على شفيع الامه🌹
+
+┏━⊱🔹 المطوّر 🔹⊰━┓
+┃  سينكو
+┃  17 سنة
+┃ صلّوا على النبي ﷺ 🌹
 ┗━━━━━━━━━━━━━━━┛
 `;
 
-        // تأخير بسيط قبل إرسال الرسالة
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      setTimeout(() => {
         api.sendMessage(welcomeMsg, event.threadID);
-      }
-    } catch (error) {
-      console.error("Error in botJoinedGroup event:", error);
+      }, 1000);
+
+    } catch (err) {
+      console.error('[ERROR botJoinedGroup]:', err);
     }
   },
 };
