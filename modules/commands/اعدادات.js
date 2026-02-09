@@ -4,22 +4,22 @@ module.exports = {
     version: '1.0',
     author: 'ᏕᎥᏁᎨᎧ',
     countDown: 3,
-    groupAdminOnly: true, // حسب صلاحيات 1 في الكود الأصلي
+    groupAdminOnly: true,
     description: 'إعدادات حماية المجموعة',
     category: 'group',
     guide: {
-      ar_SY: `   {pn} استخدم هذا الأمر لإعدادات حماية المجموعة`
+      ar_SY: `{pn} استخدم هذا الأمر لإعدادات حماية المجموعة`
     },
   },
 
   onStart: async ({ api, event, args }) => {
     try {
-      // تحقق من أن الأمر داخل مجموعة
       if (!event.isGroup) {
         return api.sendMessage('هذا الأمر يعمل داخل المجموعات فقط', event.threadID);
       }
 
-      const threadData = await global.controllers.Threads.get(event.threadID);
+      // جلب البيانات والتأكد منها
+      const threadData = await global.controllers.Threads.get(event.threadID) || { data: {} };
       const current = threadData.data?.antiSettings || {};
 
       const keys = [
@@ -31,12 +31,11 @@ module.exports = {
         "notifyChange"
       ];
 
-      // إذا لم يرسل المستخدم أرقام لتغيير الإعدادات
-      if (!args.length) {
-        const show = {};
-        for (const k of keys) show[k] = current[k] ? "✅" : "❌";
+      // إنشاء القائمة الحالية
+      const show = {};
+      for (const k of keys) show[k] = current[k] ? "✅" : "❌";
 
-        const menu = 
+      const menu = 
 `╭━〔 🛡 إعدادات المجموعة 🛡 〕━╮
 ① [${show.antiSpam}] مكافحة السبام
 ② [${show.antiOut}] منع الخروج
@@ -45,36 +44,39 @@ module.exports = {
 ⑤ [${show.antiChangeNickname}] حماية الكنيات
 ⑥ [${show.notifyChange}] إشعارات الأحداث
 ╰━━━━━━━━━━━━━━━━━╯
-↫ رد بالأرقام لتغيير الإعدادات`;
+↫ أرسل الأرقام لتغيير الإعدادات`;
 
-        return api.sendMessage(menu, event.threadID);
-      }
+      // عرض القوائم أولاً
+      await api.sendMessage(menu, event.threadID);
 
-      // تحويل args إلى أرقام صحيحة بين 1 و 6
+      // إذا لم يرسل المستخدم أي أرقام، نوقف هنا
+      if (!args.length) return;
+
       const nums = args.map(Number).filter(n => n >= 1 && n <= 6);
       if (!nums.length) {
         return api.sendMessage('اختيار غير صالح', event.threadID);
       }
 
-      // إنشاء نسخة من الإعدادات الحالية
       const newSettings = {};
       for (const k of keys) newSettings[k] = !!current[k];
 
-      // تبديل الإعدادات حسب الأرقام المرسلة
       for (const n of nums) {
         const key = keys[n - 1];
         newSettings[key] = !newSettings[key];
       }
 
-      // تحقق من أن البوت مشرف
-      const isBotAdmin = event.adminIDs?.includes(global.botID);
+      const isBotAdmin = Array.isArray(event.adminIDs) && event.adminIDs.includes(global.botID);
       if (!isBotAdmin) {
         newSettings.antiOut = false;
         newSettings.antiSpam = false;
         await api.sendMessage('البوت ليس مشرفاً، تم تعطيل بعض الحمايات', event.threadID);
       }
 
-      // عرض التأكيد
+      await global.controllers.Threads.updateData(event.threadID, {
+        antiSettings: newSettings,
+      });
+
+      // عرض التأكيد بعد التغيير
       const view = {};
       for (const k of keys) view[k] = newSettings[k] ? "✅" : "❌";
 
@@ -87,22 +89,9 @@ module.exports = {
 ⑤ [${view.antiChangeNickname}] حماية الكنيات
 ⑥ [${view.notifyChange}] إشعارات
 ╰━━━━━━━━━━━━━━━━╯
-  تفاعل بـ 👍 للحفظ`;
+تم حفظ الإعدادات ✅`;
 
-      const sentMsg = await api.sendMessage(confirmMsg, event.threadID);
-
-      // إضافة رد فعل 👍 لتأكيد
-      sentMsg.addReactEvent({
-        callback: async ({ reaction }) => {
-          if (reaction !== "👍") return;
-
-          await global.controllers.Threads.updateData(event.threadID, {
-            antiSettings: newSettings,
-          });
-
-          api.sendMessage('تم حفظ الإعدادات', event.threadID);
-        }
-      });
+      await api.sendMessage(confirmMsg, event.threadID);
 
     } catch (error) {
       console.error("Error in settings command:", error);
