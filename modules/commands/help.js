@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
+const fsExtra = require('fs-extra');
 
 const configPath = path.join(__dirname, '..', '..', 'config', 'config.json');
 const commandsPath = path.join(__dirname, '..', 'commands');
@@ -13,6 +15,15 @@ function readDB(filePath) {
         return {};
     }
 }
+
+async function downloadImage(url) {
+    const pathTemp = path.join(__dirname, 'temp_image.jpg');
+    const response = await axios({ url, method: 'GET', responseType: 'arraybuffer' });
+    fsExtra.writeFileSync(pathTemp, response.data);
+    return pathTemp;
+}
+
+const SECTION_DECOR = '◯⊰▰▱▰▱▰▱▰▱▰▱▰▱▰▱▰⊱◯';
 
 module.exports = {
     config: {
@@ -30,7 +41,7 @@ module.exports = {
     },
     onStart: async ({ api, event, args }) => {
         const config = readDB(configPath);
-        const input = args[0]; // ممكن يكون اسم أمر
+        const input = args[0];
 
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         const commands = {};
@@ -51,28 +62,25 @@ module.exports = {
             }
         }
 
-        const allCommands = Object.values(commands)
-            .filter((cmd, index, self) => self.findIndex(c => c.name === cmd.name) === index)
-            .map(c => c.name);
-
-        // =================================
-        // إذا كتب المستخدم اسم أمر محدد
-        // =================================
-        if (input && !allCommands.includes(input)) {
+        // ==============================
+        // عرض تفاصيل أمر محدد عند طلبه
+        // ==============================
+        if (input) {
             const commandConfig = commands[input.toLowerCase()];
             if (commandConfig) {
-                let detailMessage = '';
-                detailMessage += `معلومات الأمر:\n\n`;
-                detailMessage += `الاسم: ${commandConfig.name}\n`;
-                detailMessage += `الوصف: ${commandConfig.description}\n`;
-                detailMessage += `المؤلف: ${commandConfig.author}\n`;
-                detailMessage += `الإصدار: ${commandConfig.version}\n`;
+                let detailMessage = `${SECTION_DECOR}\n`;
+                detailMessage += `🌟 معلومات الأمر:\n\n`;
+                detailMessage += `🌟 الاسم: ${commandConfig.name}\n`;
+                detailMessage += `🌟 الوصف: ${commandConfig.description}\n`;
+                detailMessage += `🌟 المؤلف: ${commandConfig.author}\n`;
+                detailMessage += `🌟 الإصدار: ${commandConfig.version}\n`;
                 if (commandConfig.aliases && commandConfig.aliases.length > 0) {
-                    detailMessage += `الأسماء المستعارة: ${commandConfig.aliases.join(', ')}\n`;
+                    detailMessage += `🌟 الأسماء المستعارة: ${commandConfig.aliases.join(', ')}\n`;
                 }
                 if (commandConfig.guide && commandConfig.guide.ar) {
-                    detailMessage += `الاستخدام:\n${commandConfig.guide.ar.replace(/{pn}/g, config.prefix + commandConfig.name)}\n`;
+                    detailMessage += `🌟 الاستخدام:\n${commandConfig.guide.ar.replace(/{pn}/g, config.prefix + commandConfig.name)}\n`;
                 }
+                detailMessage += `${SECTION_DECOR}`;
 
                 return api.sendMessage(detailMessage, event.threadID);
             } else {
@@ -80,13 +88,37 @@ module.exports = {
             }
         }
 
-        // =================================
-        // عرض كل الأوامر مع صورة
-        // =================================
-        const commandsList = allCommands.join(' ⎆ ');
-        const finalMessage = `❖━┄⋄┄━╃⊱𝑴𝑨𝑭𝑰⊰╄━┄⋄┄━❖\n${commandsList}`;
-        const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+        // ==============================
+        // تقسيم الأوامر حسب الأقسام
+        // ==============================
+        const sections = {
+            'المطور': [],
+            'القرب': [],
+            'ترفيه': [],
+            'زكاء صناعي': [],
+        };
 
+        for (const cmd of Object.values(commands)) {
+            const category = (cmd.category || 'ترفيه').toLowerCase();
+            if (category === 'المطور'.toLowerCase()) sections['المطور'].push(cmd.name);
+            else if (category === 'القرب'.toLowerCase()) sections['القرب'].push(cmd.name);
+            else if (category === 'ترفيه'.toLowerCase()) sections['ترفيه'].push(cmd.name);
+            else if (category === 'ذكاء صناعي'.toLowerCase() || category === 'AI'.toLowerCase()) sections['زكاء صناعي'].push(cmd.name);
+            else sections['ترفيه'].push(cmd.name);
+        }
+
+        // ==============================
+        // بناء الرسالة المزخرفة الموحدة
+        // ==============================
+        let finalMessage = `${SECTION_DECOR}\n`;
+        for (const [section, cmds] of Object.entries(sections)) {
+            if (cmds.length === 0) continue;
+            finalMessage += `🔹 ${section} 🔹\n`;
+            finalMessage += cmds.map(name => `➤ ${name}`).join(' ◇ ') + '\n\n';
+        }
+        finalMessage += `${SECTION_DECOR}`;
+
+        const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
         return api.sendMessage(
             {
                 body: finalMessage,
@@ -96,20 +128,3 @@ module.exports = {
         );
     },
 };
-
-// =================================
-// دالة مساعدة لتحميل الصورة مؤقتاً من الإنترنت
-// =================================
-const axios = require('axios');
-const fsExtra = require('fs-extra');
-
-async function downloadImage(url) {
-    const pathTemp = path.join(__dirname, 'temp_image.jpg');
-    const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'arraybuffer'
-    });
-    fsExtra.writeFileSync(pathTemp, response.data);
-    return pathTemp;
-            }
