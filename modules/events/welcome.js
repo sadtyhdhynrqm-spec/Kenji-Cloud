@@ -1,21 +1,18 @@
 const { log } = require('../../logger/logger');
 
-// نخزن القروبات اللي رحبنا فيها بالبوت
-const greetedThreads = new Set();
-
-// نخزن الأعضاء اللي رحبنا بيهم
+// نخزن الأعضاء اللي رحبنا بيهم (لكل قروب)
 const welcomedUsers = new Set();
 
 module.exports = {
   config: {
     name: 'welcome',
-    version: '2.2',
+    version: '2.3',
     author: 'Hridoy + Fixed',
     eventType: ['log:subscribe']
   },
 
   // ==================================
-  // 1️⃣ حدث الانضمام (بوت + أعضاء)
+  // حدث انضمام الأعضاء فقط
   // ==================================
   onStart: async ({ event, api }) => {
     try {
@@ -23,74 +20,38 @@ module.exports = {
 
       const { threadID, logMessageData } = event;
       const botID = api.getCurrentUserID();
+
       if (!logMessageData?.addedParticipants) return;
 
       for (const added of logMessageData.addedParticipants) {
-        const addedID = added.userFbId;
+        const userID = added.userFbId;
 
-        // ---------- لو البوت ----------
-        if (addedID === botID) {
-          if (!greetedThreads.has(threadID)) {
-            await sendBotWelcome(api, threadID);
-            greetedThreads.add(threadID);
-          }
-          continue;
-        }
+        // ❌ نتجاهل البوت تماماً
+        if (userID === botID) continue;
 
-        // ---------- عضو عادي ----------
-        await sendUserWelcome(api, threadID, addedID);
+        // ✅ نرحب بالعضو فقط
+        await sendUserWelcome(api, threadID, userID);
       }
     } catch (error) {
       log('error', `Welcome event error: ${error.message}`);
     }
-  },
-
-  // =================================================
-  // 2️⃣ fallback لإضافة البوت (أول رسالة من البوت)
-  // =================================================
-  handleEvent: async ({ event, api }) => {
-    try {
-      const botID = api.getCurrentUserID();
-
-      // fallback خاص بالبوت فقط
-      if (event.senderID !== botID) return;
-      if (greetedThreads.has(event.threadID)) return;
-
-      await sendBotWelcome(api, event.threadID);
-      greetedThreads.add(event.threadID);
-    } catch (_) {}
   }
 };
 
 // ==================================
-// رسالة ترحيب البوت (نص فقط)
-// ==================================
-async function sendBotWelcome(api, threadID) {
-  const message = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
-⌯︙تـم الاتـصال بـنجاح ✅
-
-⌯︙اســم البوت ⎆﹝ ابلين ﹞
-⌯︙استخدم البادئة ! للتحكم بالأوامر
-
-❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`;
-
-  await api.sendMessage(message, threadID);
-  log('info', `Bot welcomed in ${threadID}`);
-}
-
-// ==================================
-// رسالة ترحيب الأعضاء (نص فقط)
+// رسالة ترحيب الأعضاء
 // ==================================
 async function sendUserWelcome(api, threadID, userID) {
-  if (welcomedUsers.has(userID + threadID)) return;
+  const key = `${userID}_${threadID}`;
+  if (welcomedUsers.has(key)) return;
 
   const userInfo = await api.getUserInfo(userID);
-  const thread = await api.getThreadInfo(threadID);
+  const threadInfo = await api.getThreadInfo(threadID);
 
   const userName = userInfo[userID]?.name || 'عضو جديد';
-  const memberCount = thread.participantIDs.length;
+  const memberCount = threadInfo.participantIDs.length;
 
-  const text = `
+  const message = `
 ❖━┄⋄┄━╃⊱ اهـــــلــيــن ⊰╄━┄⋄┄━❖
 
 ⌯︙🌸 نورت القروب يا 『 ${userName} 』
@@ -100,8 +61,8 @@ async function sendUserWelcome(api, threadID, userID) {
 ❖━┄⋄┄━╃⊱ نــورت ⊰╄━┄⋄┄━❖
 `;
 
-  await api.sendMessage(text, threadID);
-  welcomedUsers.add(userID + threadID);
+  await api.sendMessage(message, threadID);
+  welcomedUsers.add(key);
 
   log('info', `User ${userName} welcomed in ${threadID}`);
   }
