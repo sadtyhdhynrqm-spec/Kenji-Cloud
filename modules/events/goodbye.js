@@ -10,23 +10,19 @@ module.exports = {
 
   onStart: async ({ event, api }) => {
     try {
-      const { logMessageData, threadID } = event;
+      const { logMessageData } = event;
       const ownUserID = api.getCurrentUserID();
       const leftUserID = logMessageData.leftParticipantFbId;
       const removedBy = logMessageData.removedByFbId;
 
-      // إذا البوت هو اللي خرج
+      // إذا البوت خرج
       if (leftUserID === ownUserID) return;
 
-      // ❌ إذا تمت إزالة العضو (مش غادر بنفسه)
+      // إذا تمت إزالة العضو
       if (removedBy) return;
 
-      // ✅ العضو غادر بنفسه
-      const goodbyeMessage = 'غادر عب اخر بكرامه 🌚🌼';
-
-      await api.sendMessage(goodbyeMessage, threadID);
-
-      log('info', `Goodbye (left voluntarily) sent in ${threadID} for user ${leftUserID}`);
+      // العضو غادر بنفسه → لا نفعل شيء
+      log('info', `User ${leftUserID} left voluntarily (no goodbye message sent).`);
     } catch (error) {
       console.log('[API Error]', error.message);
       log('error', `Goodbye event error: ${error.message}`);
