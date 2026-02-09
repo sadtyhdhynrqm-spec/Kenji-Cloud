@@ -1,19 +1,21 @@
 module.exports = {
   config: {
     name: 'botJoinedGroup',
-    version: '1.1',
+    version: '1.3',
     author: 'Hridoy',
-    description: 'Sets bot nickname and sends welcome message when added to a new group.',
-    eventType: ['log:subscribe'], 
+    description: 'Sends welcome message when bot is added to a new group, works without Admin.',
+    eventType: ['log:subscribe'],
   },
   onStart: async ({ api, event }) => {
     try {
       const { Threads } = require('../../database/database');
       const botID = await api.getCurrentUserID();
-      const addedParticipants = event.logMessageData.addedParticipants;
+      const addedParticipants = event.logMessageData?.addedParticipants;
 
-      // التحقق إذا البوت هو الذي تم إضافته
-      if (addedParticipants && addedParticipants.some(p => p.userFbId === botID)) {
+      if (!addedParticipants) return;
+
+      // تحقق إذا البوت هو الذي تمت إضافته
+      if (addedParticipants.some(p => String(p.userFbId) === String(botID))) {
         console.log("🤖 تم إضافة البوت إلى مجموعة:", event.threadID);
 
         // إنشاء بيانات المجموعة في قاعدة البيانات
@@ -24,21 +26,18 @@ module.exports = {
           console.error("❌ خطأ في إنشاء قاعدة البيانات:", dbErr);
         }
 
-        // تغيير اسم البوت إذا كان ممكن
-        const botName = global.client.config.botName || 'Kenji Cloud';
+        // إرسال رسالة ترحيبية للجميع
         try {
-          await api.changeNickname(botName, event.threadID, botID);
-          console.log("✏️ تم تغيير اسم البوت إلى:", botName);
-        } catch (err) {
-          console.warn("⚠️ لا يمكن تغيير اسم البوت (ربما ليس Admin):", err.message);
-        }
+          const memberNames = addedParticipants
+            .filter(p => String(p.userFbId) !== String(botID))
+            .map(p => p.fullName)
+            .join(', ');
 
-        // إرسال رسالة ترحيبية
-        try {
-          await api.sendMessage(
-            `✅ مرحباً! البوت جاهز للعمل. اكتب ${global.client.config.prefix}help لرؤية الأوامر.`,
-            event.threadID
-          );
+          const welcomeMessage = memberNames
+            ? `✅ مرحباً ${memberNames}! البوت جاهز للعمل. اكتب ${global.client.config.prefix}help لرؤية الأوامر.`
+            : `✅ مرحباً! البوت جاهز للعمل. اكتب ${global.client.config.prefix}help لرؤية الأوامر.`;
+
+          await api.sendMessage({ body: welcomeMessage }, event.threadID);
           console.log("💌 تم إرسال رسالة الترحيب.");
         } catch (msgErr) {
           console.error("❌ خطأ في إرسال رسالة الترحيب:", msgErr);
