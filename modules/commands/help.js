@@ -93,18 +93,19 @@ module.exports = {
         // ==============================
         const sections = {
             'المطور': [],
-            'القرب': [],
+            'المجموعه': [],
             'ترفيه': [],
-            'زكاء صناعي': [],
+            'ذكاء صناعي': [],
         };
 
         for (const cmd of Object.values(commands)) {
             const category = (cmd.category || 'ترفيه').toLowerCase();
-            if (category === 'المطور'.toLowerCase()) sections['المطور'].push(cmd.name);
-            else if (category === 'القرب'.toLowerCase()) sections['القرب'].push(cmd.name);
-            else if (category === 'ترفيه'.toLowerCase()) sections['ترفيه'].push(cmd.name);
-            else if (category === 'ذكاء صناعي'.toLowerCase() || category === 'AI'.toLowerCase()) sections['زكاء صناعي'].push(cmd.name);
-            else sections['ترفيه'].push(cmd.name);
+
+            if (category === 'المطور') sections['المطور'].push(cmd.name);
+            else if (category === 'المجموعه') sections['المجموعه'].push(cmd.name);
+            else if (category === 'ترفيه') sections['ترفيه'].push(cmd.name);
+            else if (category === 'ذكاء صناعي' || category === 'ai') sections['ذكاء صناعي'].push(cmd.name);
+            else sections['ترفيه'].push(cmd.name); // أي أمر غير معروف يوضع في الترفيه
         }
 
         // ==============================
@@ -118,6 +119,9 @@ module.exports = {
         }
         finalMessage += `${SECTION_DECOR}`;
 
+        // ==============================
+        // إرسال الرسالة مع صورة
+        // ==============================
         const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
         return api.sendMessage(
             {
