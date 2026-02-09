@@ -44,7 +44,7 @@ module.exports = {
       }
 
       // رابط الصورة
-      const imageUrl = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+      const imageUrl = 'https://i.ibb.co/wZDHSMvM/received-897009799489398.jpg';
 
       // تحميل الصورة
       const img = await axios.get(imageUrl, { responseType: 'stream' });
