@@ -22,7 +22,13 @@ module.exports = {
         });
         
         // إرسال رسالة ترحيبية لتأكيد العمل
-        api.sendMessage(` ${global.client.config.prefix}`, event.threadID);
+        api.sendMessage(` ${global.client.config.prefix} ❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
+⌯︙تـم الاتـصال بـنجاح ✅
+
+⌯︙اســم البوت ⎆﹝ ابلين ﹞
+⌯︙استخدم البادئة ! للتحكم بالأوامر
+
+❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`, event.threadID);
       }
     } catch (error) {
       console.error("Error in botJoinedGroup event:", error);
