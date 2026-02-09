@@ -33,6 +33,9 @@
     "javascript-obfuscator": "^5.3.0",
     "moment": "^2.30.1",
     "mongodb": "^7.1.0",
-    "yt-search": "^2.13.1"
+    "yt-search": "^2.13.1",
+    "websocket-stream": "^0.0.8",
+    "ws": "^8.14.0",
+    "nexus-fca": "^1.0.0"
   }
 }
