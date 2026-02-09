@@ -66,7 +66,13 @@ module.exports = {
 // رسالة ترحيب البوت (نص فقط)
 // ==================================
 async function sendBotWelcome(api, threadID) {
-  const message = 
+  const message = `❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖
+⌯︙تـم الاتـصال بـنجاح ✅
+
+⌯︙اســم البوت ⎆﹝ ابلين ﹞
+⌯︙استخدم البادئة ! للتحكم بالأوامر
+
+❖━┄⋄┄━╃⊱ ★ ⊰╄━┄⋄┄━❖`;
 
   await api.sendMessage(message, threadID);
   log('info', `Bot welcomed in ${threadID}`);
