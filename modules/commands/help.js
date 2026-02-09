@@ -14,14 +14,14 @@ function readDB(filePath) {
     }
 }
 
-// الزخارف النهائية (فخمة، طول ثابت ومتناسق)
+// الزخارف النهائية
 const topLine = '◯⊰▰▱▱▰▱▰▱▰▱▰⊱◯';
 const bottomLine = '◯⊰▰▱▱▰▱▰▱▰▱▰⊱◯';
 
 module.exports = {
     config: {
         name: 'اوامر',
-        version: '2.1',
+        version: '2.4',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
@@ -29,8 +29,7 @@ module.exports = {
         description: 'يعرض قائمة الأوامر أو تفاصيل عن أمر محدد.',
         category: 'utility',
         guide: {
-            ar: '   {pn}' +
-                '\n   {pn} <اسم_الأمر>'
+            ar: '{pn} \n{pn} <اسم_الأمر>'
         },
     },
     onStart: async ({ api, event, args }) => {
@@ -59,13 +58,36 @@ module.exports = {
         if (!commandName) {
             const botName = config.botName || 'بوت';
 
-            const categories = {};
-            for (const cmd in commands) {
-                const c = commands[cmd];
-                if (!categories[c.category]) categories[c.category] = new Map();
-                if (!categories[c.category].has(c.name)) categories[c.category].set(c.name, c);
+            // تصنيف الأوامر
+            const categories = {
+                'المطور': new Map(),
+                'المجمعة': new Map(),
+                'الترفيه': new Map(),
+                'الذكاء_الاصطناعي': new Map()
+            };
+
+            // منع تكرار الأوامر
+            const seenCommands = new Set();
+
+            for (const cmdKey in commands) {
+                const c = commands[cmdKey];
+                if (seenCommands.has(c.name)) continue; // تجاهل التكرار
+                seenCommands.add(c.name);
+
+                const cat = c.category ? c.category.toLowerCase() : 'fun';
+                if (cat.includes('developer') || cat.includes('admin')) {
+                    categories['المطور'].set(c.name, c);
+                } else if (cat.includes('group')) {
+                    categories['المجمعة'].set(c.name, c);
+                } else if (cat.includes('ai') || cat.includes('ذكاء')) {
+                    categories['الذكاء_الاصطناعي'].set(c.name, c);
+                } else {
+                    // أي أوامر غير مصنفة تذهب للتّرفيه
+                    categories['الترفيه'].set(c.name, c);
+                }
             }
 
+            // حساب العدد الإجمالي للأوامر
             let totalCommands = 0;
             for (const cat of Object.values(categories)) totalCommands += cat.size;
 
@@ -74,30 +96,28 @@ module.exports = {
             helpMessage += `💠 قائمة أوامر ${botName}\n\n`;
             helpMessage += `💻 عدد الأوامر: ${totalCommands}\n\n`;
 
+            // عرض الأوامر لكل قسم في صف واحد مع فاصل ◈
             for (const [category, cmdsMap] of Object.entries(categories)) {
+                if (cmdsMap.size === 0) continue; // تجاهل الفئات الفارغة
                 const cmds = Array.from(cmdsMap.values()).map(c => c.name);
-                helpMessage += `🔹 ${category.toUpperCase()}:\n`;
+                helpMessage += `🔹 ${category}:\n`;
                 helpMessage += cmds.join(' ◈ ') + '\n\n';
             }
 
             helpMessage += bottomLine + '\n';
-            helpMessage += `💬 نصيحة: استخدم !help <اسم_الأمر> للحصول على التفاصيل\n`;
+            helpMessage += `💬 نصيحة: استخدم !help <اسم_الأمر> للحصول على التفاصيل`;
 
-            // إرسال صورة مع النص إذا كانت موجودة
-            const imagePath = path.join(__dirname, '..', '..', 'media', 'https://i.ibb.co/rKsDY73q/1768624739835.jpg');
-            if (fs.existsSync(imagePath)) {
-                return api.sendMessage({ body: helpMessage, attachment: fs.createReadStream(imagePath) }, event.threadID);
-            } else {
-                return api.sendMessage(helpMessage, event.threadID);
-            }
+            // إرسال الصورة مع النص من رابط الإنترنت
+            const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+            return api.sendMessage({ body: helpMessage, attachment: imageURL }, event.threadID);
 
         } else {
+            // تفاصيل أمر محدد بدون اسم المطور
             const commandConfig = commands[commandName.toLowerCase()];
             if (commandConfig) {
                 let detailMessage = '';
                 detailMessage += `💠 معلومات عن الأمر - ${commandConfig.name}\n\n`;
                 detailMessage += `📜 الوصف: ${commandConfig.description}\n`;
-                detailMessage += `👑 المطور: ${commandConfig.author}\n`;
                 detailMessage += `🆚 الإصدار: ${commandConfig.version}\n`;
                 if (commandConfig.aliases && commandConfig.aliases.length > 0) {
                     detailMessage += `🔹 الأسماء البديلة: ${commandConfig.aliases.join(', ')}\n`;
