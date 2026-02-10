@@ -4,17 +4,28 @@ const moment = require('moment');
 
 module.exports = {
   config: {
-    name: 'uptime',              // ✅ الاسم الأساسي (لازم إنجليزي)
-    aliases: ['ابتايم'],         // ✅ الاسم العربي
-    version: '1.0',
+    name: 'uptime',
+    aliases: ['ابتايم'],
+    version: '1.1',
     author: 'Hridoy',
-    description: 'Sends system, uptime, and other info',
+    description: 'Sends system, uptime, and other info with live editing',
     countDown: 5,
     prefix: true,
     category: 'utility',
   },
 
   onStart: async ({ api, event }) => {
+    const threadID = event.threadID;
+    const replyID = event.messageID;
+
+    // ⏳ رسالة انتظار
+    const waitingMsg = await api.sendMessage(
+      '⏳ جاري جمع معلومات النظام...',
+      threadID,
+      replyID
+    );
+    const processingID = waitingMsg.messageID;
+
     try {
       // ====== Uptime ======
       const uptimeSeconds = process.uptime();
@@ -44,10 +55,8 @@ module.exports = {
         status: '⚠️ | ⊱𝑴𝗈𝖽𝖾𝗋𝖺𝗍𝖾 ⊱𝑳𝗈𝖺𝖽',
       };
 
-      // ====== Message ======
+      // ====== Final Message ======
       const message = `
-♡  ∩_∩
-（„• ֊ •„)♡
 ╭─∪∪────────────⟡
 │ ⊱𝑼𝑷𝑻𝑰𝑴𝑬 ⊱𝑰𝑵𝑭𝑶
 ├───────────────⟡
@@ -72,11 +81,12 @@ module.exports = {
 ╰───────────────⟡
 `;
 
-      api.sendMessage(message, event.threadID);
+      // ✨ تعديل رسالة الانتظار
+      api.editMessage(message, processingID);
 
     } catch (error) {
-      console.error('Error sending uptime:', error);
-      api.sendMessage('حدث خطأ أثناء جلب المعلومات ⚠️', event.threadID);
+      console.error('Uptime error:', error);
+      api.editMessage('❌ حدث خطأ أثناء جلب المعلومات', processingID);
     }
   },
 };
