@@ -1,17 +1,14 @@
-const { Users, Threads } = require('../../database/database');
+const { Threads } = require('../../database/database');
 
 module.exports = {
   config: {
     name: 'prefix',
-    version: '1.0',
+    version: '1.1',
     author: 'Hridoy',
     countDown: 5,
     prefix: false, // يشتغل بدون بادئة
-    description: 'يعرض البادئة الخاصة بالبوت والمجموعة، وعدد المستخدمين والمجموعات.',
+    description: 'يعرض بادئة النظام وبادئة المجموعة فقط',
     category: 'utility',
-    guide: {
-      en: '   {pn} [show/setprefix]'
-    },
   },
 
   onStart: async ({ api, event, args }) => {
@@ -20,38 +17,39 @@ module.exports = {
       const threadData = Threads.get(threadID) || {};
       threadData.settings = threadData.settings || {};
 
-      // البادئة الحالية (يمكن أن تكون فارغة)
-      const groupPrefix = threadData.settings.prefix || '';
+      // بادئة المجموعة
+      const groupPrefix = threadData.settings.prefix || '⧉⭅『』';
 
-      // أمر لتغيير البادئة
+      // تغيير بادئة المجموعة
       if (args[0] === 'setprefix') {
-        if (!event.isGroup) return api.sendMessage('هذا الأمر خاص بالمجموعات فقط.', threadID);
-        if (!args[1]) return api.sendMessage('أرسل البادئة الجديدة.', threadID);
+        if (!event.isGroup)
+          return api.sendMessage('❌ الأمر دا خاص بالمجموعات بس', threadID);
 
-        // تحديث البادئة
+        if (!args[1])
+          return api.sendMessage('⚠️ أرسل البادئة الجديدة', threadID);
+
         threadData.settings.prefix = args[1];
         Threads.set(threadID, threadData);
 
-        return api.sendMessage(`تم تغيير البادئة للمجموعة إلى: ${args[1] || 'فارغة (بدون بادئة)'}`, threadID);
+        return api.sendMessage(
+          `✅ تم تغيير بادئة المجموعة إلى:\n⧉⭅『${args[1]}』`,
+          threadID
+        );
       }
 
-      // عرض معلومات البوت والبادئة
-      const botPrefix = global.client.config.prefix || '';
-      const totalUsers = Object.keys(Users.getAll()).length;
-      const totalThreads = Object.keys(Threads.getAll()).length;
+      // بادئة النظام
+      const systemPrefix = global.client.config.prefix || '⧉⭅『』';
 
-      const message = `--- معلومات البوت ---\n` +
-                      `بادئة البوت: ${botPrefix || 'فارغة (بدون بادئة)'}\n` +
-                      `بادئة المجموعة: ${groupPrefix || 'فارغة (بدون بادئة)'}\n` +
-                      `إجمالي المستخدمين: ${totalUsers}\n` +
-                      `إجمالي المجموعات: ${totalThreads}\n\n` +
-                      `لتغيير البادئة: ${groupPrefix || 'فارغة'} setprefix [البادئة الجديدة]`;
+      const message =
+        `⧉⭅『 معلومات البادئة 』⧉⭅\n\n` +
+        `⚙️ بادئة النظام : ⧉⭅『${systemPrefix}』\n` +
+        `👥 بادئة المجموعة : ⧉⭅『${groupPrefix}』`;
 
       api.sendMessage(message, threadID);
 
-    } catch (error) {
-      console.error("حدث خطأ في أمر البادئة:", error);
-      api.sendMessage('حدث خطأ أثناء جلب معلومات البادئة.', event.threadID);
+    } catch (err) {
+      console.error('خطأ في أمر prefix:', err);
+      api.sendMessage('❌ حصل خطأ أثناء تنفيذ الأمر', event.threadID);
     }
   }
 };
