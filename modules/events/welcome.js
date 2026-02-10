@@ -6,14 +6,11 @@ const welcomedUsers = new Set();
 module.exports = {
   config: {
     name: 'welcome',
-    version: '2.3',
-    author: 'Hridoy + Fixed',
+    version: '2.6',
+    author: 'Hridoy + Premium Style',
     eventType: ['log:subscribe']
   },
 
-  // ==================================
-  // حدث انضمام الأعضاء فقط
-  // ==================================
   onStart: async ({ event, api }) => {
     try {
       if (event.logMessageType !== 'log:subscribe') return;
@@ -23,15 +20,14 @@ module.exports = {
 
       if (!logMessageData?.addedParticipants) return;
 
-      for (const added of logMessageData.addedParticipants) {
-        const userID = added.userFbId;
+      const newUsers = logMessageData.addedParticipants
+        .map(p => p.userFbId)
+        .filter(id => id !== botID);
 
-        // ❌ نتجاهل البوت تماماً
-        if (userID === botID) continue;
+      if (newUsers.length === 0) return;
 
-        // ✅ نرحب بالعضو فقط
-        await sendUserWelcome(api, threadID, userID);
-      }
+      await sendGroupWelcome(api, threadID, newUsers);
+
     } catch (error) {
       log('error', `Welcome event error: ${error.message}`);
     }
@@ -39,30 +35,38 @@ module.exports = {
 };
 
 // ==================================
-// رسالة ترحيب الأعضاء
+// رسالة ترحيب جماعية فخمة جدًا
 // ==================================
-async function sendUserWelcome(api, threadID, userID) {
-  const key = `${userID}_${threadID}`;
-  if (welcomedUsers.has(key)) return;
-
-  const userInfo = await api.getUserInfo(userID);
+async function sendGroupWelcome(api, threadID, userIDs) {
   const threadInfo = await api.getThreadInfo(threadID);
+  const membersInfo = await api.getUserInfo(userIDs);
 
-  const userName = userInfo[userID]?.name || 'عضو جديد';
+  const namesList = userIDs
+    .map(id => {
+      const key = `${id}_${threadID}`;
+      if (welcomedUsers.has(key)) return null;
+      welcomedUsers.add(key);
+      return membersInfo[id]?.name || 'عضو جديد';
+    })
+    .filter(Boolean);
+
+  if (namesList.length === 0) return;
+
   const memberCount = threadInfo.participantIDs.length;
 
   const message = `
-❖━┄⋄┄━╃⊱ اهـــــلــيــن ⊰╄━┄⋄┄━❖
+╔═══════════❀═══════════╗
+   نـورتـم مـــــجـمـوعـتـنه الــــــسقيرة 
 
-⌯︙🌸 نورت القروب يا 『 ${userName} 』
-⌯︙👥 عدد الأعضاء الآن ↫ 『 ${memberCount} 』
-⌯︙💬 نتمنى لك وقت جميل معنا
 
-❖━┄⋄┄━╃⊱ نــورت ⊰╄━┄⋄┄━❖
+${namesList.map((name, i) => `🌟 ${i + 1}. ${name}`).join('\n')}
+
+👥 عدد الأعضاء الحالي: ${memberCount}
+💬 نتمنى لكم أوقات ممتعة وذكريات رائعة معنا!
+        ✨ 𝓝𝓲𝓬𝓮 𝓽𝓸 𝓢𝓮𝓮 𝓨𝓸𝓾 ✨
+╚══════════❀══════════╝
 `;
 
   await api.sendMessage(message, threadID);
-  welcomedUsers.add(key);
-
-  log('info', `User ${userName} welcomed in ${threadID}`);
-  }
+  log('info', `Users ${namesList.join(', ')} welcomed in ${threadID}`);
+}
