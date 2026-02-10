@@ -1,12 +1,11 @@
 const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
-const config = require('../../config/config.json');
 
 module.exports = {
     config: {
         name: 'إشعار',
-        version: '1.0',
+        version: '1.2',
         author: 'Hridoy',
         countDown: 5,
         prefix: true,
@@ -14,7 +13,7 @@ module.exports = {
         description: 'إرسال إشعار إلى جميع المجموعات (للمشرف فقط).',
         category: 'admin',
         guide: {
-            en: '   {pn}إشعار <النص> (أو الرد على وسائط مع <النص>)'
+            ar: '{pn}إشعار <النص> (أو الرد على وسائط مع <النص>)'
         },
     },
 
@@ -25,16 +24,14 @@ module.exports = {
         const text = args.join(' ').trim();
         if (!text) {
             return api.sendMessage(
-                '❌ يرجى كتابة نص الإشعار.\n\nمثال:\n!إشعار مرحبًا بالجميع',
+                '❌ يرجى كتابة نص الإشعار.\n\nمثال:\n!إشعار سيتم إيقاف البوت مؤقتًا',
                 threadID,
                 messageID
             );
         }
 
         try {
-            const adminName = config.ownerName || 'الإداري';
-
-            const sendTime = new Date().toLocaleString('ar-EG', { timeZone: 'Asia/Dhaka' });
+            const sendTime = new Date().toLocaleString('ar-EG');
 
             const allThreads = await api.getThreadList(100, null, ['INBOX']);
             const groupThreads = allThreads.filter(
@@ -43,7 +40,7 @@ module.exports = {
 
             if (groupThreads.length === 0) {
                 return api.sendMessage(
-                    '❌ لا توجد مجموعات مفعّل فيها البوت.',
+                    '⚠️ لا توجد مجموعات مفعّل فيها البوت.',
                     threadID,
                     messageID
                 );
@@ -59,34 +56,32 @@ module.exports = {
                         attachment.url ||
                         (attachment.type === 'photo' ? attachment.largePreviewUrl : null);
 
-                    if (url) {
-                        const filePath = path.resolve(
-                            cacheDir,
-                            `noti_${threadID}_${Date.now()}_${Math.random()
-                                .toString(36)
-                                .substr(2, 5)}.${attachment.type}`
-                        );
+                    if (!url) continue;
 
-                        const response = await axios.get(url, {
-                            responseType: 'arraybuffer',
-                            timeout: 15000
-                        });
+                    const filePath = path.resolve(
+                        cacheDir,
+                        `notify_${Date.now()}_${Math.random()
+                            .toString(36)
+                            .slice(2)}`
+                    );
 
-                        await fs.writeFile(filePath, Buffer.from(response.data));
-                        attachments.push(fs.createReadStream(filePath));
-                    }
+                    const res = await axios.get(url, {
+                        responseType: 'arraybuffer',
+                        timeout: 15000
+                    });
+
+                    await fs.writeFile(filePath, res.data);
+                    attachments.push(fs.createReadStream(filePath));
                 }
             }
 
+            // صياغة الرسالة بالزخرفة المطلوبة
             const notificationMessage =
-                `================================\n` +
-                `📢 إشعار إداري\n` +
-                `👤 المرسل: ${adminName}\n` +
-                `--------------------------------\n` +
-                `📝 الرسالة:\n${text}\n` +
-                `--------------------------------\n` +
-                `⏰ وقت الإرسال: ${sendTime}\n` +
-                `================================`;
+                `◯⊰▰▱▱▰▱▰▱▰▱▰⊱◯\n` +
+                `📢 إشـعـار إداري\n\n` +
+                `📝 الرسالة:\n${text}\n\n` +
+                `⏰ وقت الإرسال:\n${sendTime}\n` +
+                `◯⊰▰▱▱▰▱▰▱▰▱▰⊱◯`;
 
             let successCount = 0;
             for (const thread of groupThreads) {
@@ -94,29 +89,29 @@ module.exports = {
                     api.sendMessage(
                         {
                             body: notificationMessage,
-                            attachment: attachments.length > 0 ? attachments : undefined
+                            attachment: attachments.length ? attachments : undefined
                         },
                         thread.threadID,
                         err => {
                             if (!err) successCount++;
-                            if (attachments.length > 0) {
-                                attachments.forEach(stream =>
-                                    fs.unlinkSync(stream.path)
-                                );
-                            }
                             resolve();
                         }
                     );
                 });
             }
 
+            // تنظيف الملفات المؤقتة
+            for (const stream of attachments) {
+                fs.unlinkSync(stream.path);
+            }
+
             api.sendMessage(
-                `✅ تم إرسال الإشعار بنجاح إلى ${successCount} مجموعة.`,
+                `✅ تم إرسال الإشعار إلى ${successCount} مجموعة بنجاح.`,
                 threadID,
                 messageID
             );
 
-        } catch (error) {
+        } catch (err) {
             api.sendMessage(
                 '❌ حدث خطأ أثناء إرسال الإشعار.',
                 threadID,
