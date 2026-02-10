@@ -1,5 +1,5 @@
 const axios = require("axios");
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 const request = require("request");
 
@@ -7,7 +7,7 @@ module.exports = {
   config: {
     name: "بنتراست",
     aliases: ["pin", "pint", "بن", "pinterest", "صور"],
-    version: "1.2",
+    version: "2.1.0",
     author: "YourName",
     description: "البحث عن صور من Pinterest",
     countDown: 5,
@@ -18,17 +18,22 @@ module.exports = {
 
   onStart: async ({ api, event, args }) => {
     const threadID = event.threadID;
-    const replyID = event.messageID;
+    const messageID = event.messageID;
+
+    // 🔂 تفاعل عند بداية الطلب
+    await api.setMessageReaction("🔂", messageID, () => {}, true);
 
     if (!args.length) {
+      await api.setMessageReaction("❌", messageID, () => {}, true);
       return api.sendMessage(
-        "⚠️ الرجاء إدخال كلمة البحث!\n\n📝 مثال: بين cat - 5",
+        "⚠️ مثال الاستخدام:\nبن cat - 5",
         threadID,
-        replyID
+        messageID
       );
     }
 
-    let count = 8;
+    // عدد الصور
+    let count = 6;
     const lastArg = args[args.length - 1];
     if (!isNaN(lastArg)) {
       count = Math.min(parseInt(lastArg), 20);
@@ -36,80 +41,84 @@ module.exports = {
     }
 
     const query = args.join(" ").trim();
+    const cacheDir = path.join(__dirname, "cache");
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
 
-    const waitMsg = await api.sendMessage(
-      `🔍 جاري البحث عن "${query}"...\n⏳ الرجاء الانتظار...`,
-      threadID,
-      replyID
-    );
+    // ====== Scraping Pinterest ======
+    const scrapePinterest = () =>
+      new Promise((resolve, reject) => {
+        const headers = {
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+          "accept-language": "en-US,en;q=0.9"
+        };
 
-    const processingID = waitMsg.messageID;
+        const url = `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`;
+
+        request({ url, headers }, (err, res, body) => {
+          if (err || res.statusCode !== 200) return reject();
+
+          const images = body.match(/https:\/\/i\.pinimg\.com\/originals\/[^"]+\.jpg/g);
+          if (!images || !images.length) return reject();
+
+          resolve([...new Set(images)].slice(0, count));
+        });
+      });
+
+    // ====== API بديل ======
+    const apiPinterest = async () => {
+      const res = await axios.get(
+        `https://pinterest-ashen.vercel.app/api?search=${encodeURIComponent(query)}`
+      );
+      return res.data.data.slice(0, count);
+    };
 
     try {
-      const headers = {
-        'authority': 'www.pinterest.com',
-        'cache-control': 'max-age=0',
-        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'upgrade-insecure-requests': '1',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        'accept-language': 'en-US,en;q=0.9',
-        'cookie': 'csrftoken=92c7c57416496066c4cd5a47a2448e28;' // ممكن تحط cookies أصلية هنا إذا لازم
-      };
+      let images = [];
 
-      const url = `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}&rs=typed&term_meta[]=${encodeURIComponent(query)}%7Ctyped`;
+      try {
+        images = await scrapePinterest();
+      } catch {
+        images = await apiPinterest();
+      }
 
-      request({ url, headers }, async (error, response, body) => {
-        if (!error && response.statusCode === 200) {
-          const matches = body.match(/https:\/\/i\.pinimg\.com\/originals\/[^.]+\.jpg/g);
+      if (!images.length) {
+        await api.setMessageReaction("❌", messageID, () => {}, true);
+        return;
+      }
 
-          if (!matches || matches.length === 0) {
-            return api.editMessage(`❌ لم يتم العثور على صور لـ "${query}"`, processingID);
+      const attachments = [];
+
+      for (let i = 0; i < images.length; i++) {
+        const imgPath = path.join(cacheDir, `pin_${Date.now()}_${i}.jpg`);
+        const img = await axios.get(images[i], { responseType: "arraybuffer" });
+        await fs.writeFile(imgPath, img.data);
+        attachments.push(fs.createReadStream(imgPath));
+      }
+
+      // ✅ نجاح
+      await api.setMessageReaction("✅", messageID, () => {}, true);
+
+      await api.sendMessage(
+        {
+          body: `📸 نتائج البحث: "${query}"`,
+          attachment: attachments
+        },
+        threadID,
+        messageID
+      );
+
+      // تنظيف الكاش
+      setTimeout(() => {
+        fs.readdirSync(cacheDir).forEach(file => {
+          if (file.startsWith("pin_")) {
+            fs.unlinkSync(path.join(cacheDir, file));
           }
-
-          const uniqueImages = [...new Set(matches)].slice(0, count);
-          const attachments = [];
-
-          const cacheDir = path.join(__dirname, "cache");
-          if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-
-          for (let i = 0; i < uniqueImages.length; i++) {
-            const imgPath = path.join(cacheDir, `pinterest_${Date.now()}_${i}.jpg`);
-            const res = await axios.get(uniqueImages[i], { responseType: "stream" });
-            const writer = fs.createWriteStream(imgPath);
-            res.data.pipe(writer);
-            await new Promise((resolve, reject) => {
-              writer.on("finish", resolve);
-              writer.on("error", reject);
-            });
-            attachments.push(fs.createReadStream(imgPath));
-          }
-
-          await api.editMessage(
-            {
-              body: `✅ تم العثور على ${attachments.length} صورة لـ "${query}"`,
-              attachment: attachments
-            },
-            processingID
-          );
-
-          // تنظيف الكاش بعد 5 ثواني
-          setTimeout(() => {
-            fs.readdir(cacheDir, (err, files) => {
-              if (err) return;
-              files.forEach(file => {
-                if (file.startsWith("pinterest_")) fs.unlinkSync(path.join(cacheDir, file));
-              });
-            });
-          }, 5000);
-
-        } else {
-          api.editMessage("❌ حدث خطأ أثناء البحث عن الصور", processingID);
-        }
-      });
+        });
+      }, 5000);
 
     } catch (err) {
       console.error("Pinterest Error:", err);
-      api.editMessage("❌ حدث خطأ أثناء البحث عن الصور", processingID);
+      await api.setMessageReaction("❌", messageID, () => {}, true);
     }
   }
 };
