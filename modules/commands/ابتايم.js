@@ -6,36 +6,34 @@ module.exports = {
   config: {
     name: 'uptime',
     aliases: ['ابتايم'],
-    version: '1.1',
+    version: '1.3',
     author: 'Hridoy',
-    description: 'Sends system, uptime, and other info with live editing',
+    description: 'معلومات تشغيل النظام والبوت',
     countDown: 5,
     prefix: true,
     category: 'utility',
+    adminOnly: true
   },
 
   onStart: async ({ api, event }) => {
     const threadID = event.threadID;
     const replyID = event.messageID;
 
-    // ⏳ رسالة انتظار
     const waitingMsg = await api.sendMessage(
-      '⏳ جاري جمع معلومات النظام...',
+      '⏳ جاري فحص حالة النظام...',
       threadID,
       replyID
     );
     const processingID = waitingMsg.messageID;
 
     try {
-      // ====== Uptime ======
       const uptimeSeconds = process.uptime();
-      const days = Math.floor(uptimeSeconds / (24 * 3600));
-      const hours = Math.floor((uptimeSeconds % (24 * 3600)) / 3600);
+      const days = Math.floor(uptimeSeconds / 86400);
+      const hours = Math.floor((uptimeSeconds % 86400) / 3600);
       const minutes = Math.floor((uptimeSeconds % 3600) / 60);
       const seconds = Math.floor(uptimeSeconds % 60);
       const uptime = `${days}d ${hours}h ${minutes}m ${seconds}s`;
 
-      // ====== System Info ======
       const systemInfo = {
         os: `${os.type()} ${os.arch()}`,
         node: process.version,
@@ -45,7 +43,6 @@ module.exports = {
         ramUsage: (process.memoryUsage().rss / 1024 / 1024).toFixed(2) + ' MB',
       };
 
-      // ====== Other Info ======
       const otherInfo = {
         date: moment().format('MMM D, YYYY'),
         time: moment().format('hh:mm:ss A'),
@@ -55,33 +52,28 @@ module.exports = {
         status: '⚠️ | ⊱𝑴𝗈𝖽𝖾𝗋𝖺𝗍𝖾 ⊱𝑳𝗈𝖺𝖽',
       };
 
-      // ====== Final Message ======
       const message = `
-╭─∪∪────────────⟡
-│ ⊱𝑼𝑷𝑻𝑰𝑴𝑬 ⊱𝑰𝑵𝑭𝑶
-├───────────────⟡
-│ ⏰ ⊱𝑹𝑼𝑵𝑻𝑰𝑴𝑬
-│  ${uptime}
-├───────────────⟡
-│ 👑 ⊱𝑺𝒀𝑺𝑻𝑬𝑴 ⊱𝑰𝑵𝑭𝑶
-│⊱𝑶𝑺: ${systemInfo.os}
-│⊱𝑳𝑨𝑵𝑮 ⊱𝑽𝑬𝑹: ${systemInfo.node}
-│⊱𝑪𝑷𝑼 ⊱𝑴𝑶𝑫𝑬𝑳: ${systemInfo.cpu}
-│⊱𝑺𝑻𝑶𝑹𝑨𝑮𝑬: ${systemInfo.storage}
-│⊱𝑪𝑷𝑼 ⊱𝑼𝑺𝑨𝑮𝑬: ${systemInfo.cpuUsage}
-│⊱𝑹𝑨𝑴 ⊱𝑼𝑺𝑮𝑬: ${systemInfo.ramUsage}
-├───────────────⟡
-│ ✅ ⊱𝑶𝑻𝑯𝑬𝑹 ⊱𝑰𝑵𝑭𝑶
-│⊱𝑫𝑨𝑻𝑬: ${otherInfo.date}
-│⊱𝑻𝑰𝑴𝑬: ${otherInfo.time}
-│⊱𝑼𝑺𝑬𝑹𝑺: ${otherInfo.users}
-│⊱𝑻𝑯𝑹𝑬𝑨𝑫𝑺: ${otherInfo.threads}
-│⊱𝑷𝑰𝑵𝑮: ${otherInfo.ping}
-│⊱𝑺𝑻𝑨𝑻𝑼𝑺: ${otherInfo.status}
-╰───────────────⟡
+⟡──────── ⊱𝑼𝑷𝑻𝑰𝑴𝑬 ───────⟡
+⏰  ${uptime}
+
+⟡──────── ⊱𝑺𝒀𝑺𝑻𝑬𝑴 ───────⟡
+⊱𝑶𝑺        » ${systemInfo.os}
+⊱𝑳𝑨𝑵𝑮     » ${systemInfo.node}
+⊱𝑪𝑷𝑼       » ${systemInfo.cpu}
+⊱𝑺𝑻𝑶𝑹𝑨𝑮𝑬 » ${systemInfo.storage}
+⊱𝑪𝑷𝑼 𝑼𝑺𝑬  » ${systemInfo.cpuUsage}
+⊱𝑹𝑨𝑴 𝑼𝑺𝑬  » ${systemInfo.ramUsage}
+
+⟡──────── ⊱𝑶𝑻𝑯𝑬𝑹 ────────⟡
+⊱𝑫𝑨𝑻𝑬    » ${otherInfo.date}
+⊱𝑻𝑰𝑴𝑬    » ${otherInfo.time}
+⊱𝑼𝑺𝑬𝑹𝑺   » ${otherInfo.users}
+⊱𝑻𝑯𝑹𝑬𝑨𝑫𝑺 » ${otherInfo.threads}
+⊱𝑷𝑰𝑵𝑮    » ${otherInfo.ping}
+⊱𝑺𝑻𝑨𝑻𝑼𝑺  » ${otherInfo.status}
+⟡────────────────────────⟡
 `;
 
-      // ✨ تعديل رسالة الانتظار
       api.editMessage(message, processingID);
 
     } catch (error) {
