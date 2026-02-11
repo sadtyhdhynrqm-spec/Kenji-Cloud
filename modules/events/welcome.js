@@ -6,8 +6,8 @@ const welcomedUsers = new Set();
 module.exports = {
   config: {
     name: 'welcome',
-    version: '2.6',
-    author: 'Hridoy + Premium Style',
+    version: '2.7',
+    author: 'Hridoy + Premium Mention Edit',
     eventType: ['log:subscribe']
   },
 
@@ -35,31 +35,41 @@ module.exports = {
 };
 
 // ==================================
-// رسالة ترحيب جماعية فخمة جدًا
+// رسالة ترحيب مع منشن رسمي للأعضاء
 // ==================================
 async function sendGroupWelcome(api, threadID, userIDs) {
   const threadInfo = await api.getThreadInfo(threadID);
   const membersInfo = await api.getUserInfo(userIDs);
 
-  const namesList = userIDs
-    .map(id => {
-      const key = `${id}_${threadID}`;
-      if (welcomedUsers.has(key)) return null;
-      welcomedUsers.add(key);
-      return membersInfo[id]?.name || 'عضو جديد';
-    })
-    .filter(Boolean);
+  const mentions = [];
+  let bodyText = `
+╔═══════════❀═══════════╗
+   نـورتـم مـــــجـمـوعـتـنـا الــــــسـقـيـرة 💛
 
-  if (namesList.length === 0) return;
+`;
+
+  userIDs.forEach((id, index) => {
+    const key = `${id}_${threadID}`;
+    if (welcomedUsers.has(key)) return;
+
+    welcomedUsers.add(key);
+
+    const name = membersInfo[id]?.name || 'عضو جديد';
+    const tag = `@${name}`;
+
+    bodyText += ` ${index + 1}. ${tag}\n`;
+
+    mentions.push({
+      tag,
+      id
+    });
+  });
+
+  if (mentions.length === 0) return;
 
   const memberCount = threadInfo.participantIDs.length;
 
-  const message = `
-╔═══════════❀═══════════╗
-   نـورتـم مـــــجـمـوعـتـنه الــــــسقيرة 
-
-
-${namesList.map((name, i) => `🌟 ${i + 1}. ${name}`).join('\n')}
+  bodyText += `
 
 👥 عدد الأعضاء الحالي: ${memberCount}
 💬 نتمنى لكم أوقات ممتعة وذكريات رائعة معنا!
@@ -67,6 +77,13 @@ ${namesList.map((name, i) => `🌟 ${i + 1}. ${name}`).join('\n')}
 ╚══════════❀══════════╝
 `;
 
-  await api.sendMessage(message, threadID);
-  log('info', `Users ${namesList.join(', ')} welcomed in ${threadID}`);
-}
+  await api.sendMessage(
+    {
+      body: bodyText,
+      mentions
+    },
+    threadID
+  );
+
+  log('info', `Users welcomed with mention in ${threadID}`);
+  }
