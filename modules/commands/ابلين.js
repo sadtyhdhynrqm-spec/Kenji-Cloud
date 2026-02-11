@@ -6,7 +6,8 @@ module.exports = {
         version: '1.0',
         author: 'محمد',
         countDown: 3,
-        prefix: true,
+        prefix: false,        // الآن يشتغل بدون بادئة
+        noPrefix: true,       // يخلي معالج الأوامر يتعرف عليه بدون بادئة
         groupAdminOnly: false,
         description: 'ذكاء اصطناعي سوداني',
         category: 'ai',
