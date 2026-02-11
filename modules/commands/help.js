@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 const fsExtra = require('fs-extra');
+const axios = require('axios');
 
 const configPath = path.join(__dirname, '..', '..', 'config', 'config.json');
 const commandsPath = path.join(__dirname, '..', 'commands');
@@ -29,14 +29,14 @@ async function downloadImage(url) {
 
 module.exports = {
     config: {
-        name: 'اوامر',
-        version: '5.0',
-        author: 'Edited by Abu Obaida',
+        name: 'help',
+        version: '1.0.0',
+        author: 'Hridoy (Edited by Abu Obaida)',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
         description: 'عرض قائمة الأوامر أو تفاصيل أمر محدد.',
-        category: 'المجموعة',
+        category: 'utility',
         guide: {
             ar: '{pn}\n{pn} <اسم_الأمر>'
         },
@@ -46,6 +46,7 @@ module.exports = {
         const config = readDB(configPath);
         const input = args[0];
 
+        // تحميل كل الأوامر
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         const commands = {};
 
@@ -53,10 +54,8 @@ module.exports = {
             try {
                 delete require.cache[require.resolve(path.join(commandsPath, file))];
                 const command = require(path.join(commandsPath, file));
-
                 if (command.config) {
                     commands[command.config.name.toLowerCase()] = command.config;
-
                     if (command.config.aliases) {
                         for (const alias of command.config.aliases) {
                             commands[alias.toLowerCase()] = command.config;
@@ -73,12 +72,9 @@ module.exports = {
                 self.findIndex(c => c.name === cmd.name) === index
             );
 
-        // =========================
-        // عرض تفاصيل أمر
-        // =========================
+        // عرض تفاصيل أمر محدد
         if (input) {
             const commandConfig = commands[input.toLowerCase()];
-
             if (!commandConfig) {
                 return api.sendMessage(`❌ لم يتم العثور على الأمر "${input}"`, event.threadID);
             }
@@ -105,11 +101,8 @@ module.exports = {
             return api.sendMessage(detailMessage, event.threadID);
         }
 
-        // =========================
         // تصنيف الأوامر
-        // =========================
         const categories = {};
-
         const categoryMap = {
             'group': 'المجموعة',
             'image': 'الصور',
@@ -130,21 +123,10 @@ module.exports = {
 
         for (const cmd of uniqueCommands) {
             let category = cmd.category;
-
-            // ✅ لو الأمر تبع مطور
-            if (
-                cmd.category === 'owner' ||
-                cmd.category === 'المطور' ||
-                cmd.role === 2
-            ) {
+            if (cmd.category === 'owner' || cmd.category === 'المطور' || cmd.role === 2) {
                 category = 'المطور';
             }
-
-            // ✅ لو ما عندو قسم -> الترفيه
-            if (!category) {
-                category = 'الترفيه';
-            }
-
+            if (!category) category = 'الترفيه';
             category = categoryMap[category] || category;
 
             if (!categories[category]) categories[category] = [];
@@ -152,47 +134,26 @@ module.exports = {
         }
 
         const orderedCats = [
-            'المجموعة',
-            'الخدمات السريعة',
-            'الصور',
-            'الوسائط',
-            'الموسيقى',
-            'الفيديو',
-            'الذكاء AI الأقوى',
-            'الترفيه',
-            'اللعب',
-            'عشوائي',
-            'المستوى',
-            'المطور',
-            'الأدوات'
+            'المجموعة', 'الخدمات السريعة', 'الصور', 'الوسائط',
+            'الموسيقى', 'الفيديو', 'الذكاء AI الأقوى', 'الترفيه',
+            'اللعب', 'عشوائي', 'المستوى', 'المطور', 'الأدوات'
         ];
 
-        // =========================
-        // بناء القائمة
-        // =========================
+        // بناء قائمة الأوامر
         let finalMessage = "";
         const line = "━━━━━━━━━━•✧•━━━━━━━━━━";
 
         for (const category of orderedCats) {
             const cmds = categories[category];
             if (!cmds || cmds.length === 0) continue;
-
-            // إخفاء قسم المطور لغيرك
-            if (category === "المطور" && !config.adminBot?.includes(event.senderID)) {
-                continue;
-            }
+            if (category === "المطور" && !config.adminBot?.includes(event.senderID)) continue;
 
             finalMessage += `${line}\n`;
             finalMessage += `『 ${category} 』\n\n`;
-
             for (let i = 0; i < cmds.length; i += 3) {
-                const row = cmds
-                    .slice(i, i + 3)
-                    .map(c => `⤹⌯ ${c}`)
-                    .join("   ");
+                const row = cmds.slice(i, i + 3).map(c => `⤹⌯ ${c}`).join("   ");
                 finalMessage += `${row}\n`;
             }
-
             finalMessage += "\n";
         }
 
