@@ -3,11 +3,11 @@ const { Threads } = require('../../database/database');
 module.exports = {
   config: {
     name: 'prefix',
-    version: '2.0',
-    author: 'Hridoy + Modified by Abu Ubaida',
+    version: '1.1',
+    author: 'Hridoy',
     countDown: 5,
     prefix: false, // يشتغل بدون بادئة
-    description: 'إدارة وعرض بادئة النظام والمجموعة',
+    description: 'يعرض بادئة النظام وبادئة المجموعة فقط',
     category: 'utility',
   },
 
@@ -17,69 +17,39 @@ module.exports = {
       const threadData = Threads.get(threadID) || {};
       threadData.settings = threadData.settings || {};
 
-      const systemPrefix = global.client.config.prefix || '';
-      const groupPrefix = threadData.settings.prefix ?? systemPrefix;
+      // بادئة المجموعة
+      const groupPrefix = threadData.settings.prefix || '⧉⭅『』';
 
-      // ===============================
       // تغيير بادئة المجموعة
-      // ===============================
       if (args[0] === 'setprefix') {
-
         if (!event.isGroup)
           return api.sendMessage('❌ الأمر دا خاص بالمجموعات بس', threadID);
 
         if (!args[1])
-          return api.sendMessage('⚠️ أرسل البادئة الجديدة\nمثال:\nprefix setprefix $', threadID);
+          return api.sendMessage('⚠️ أرسل البادئة الجديدة', threadID);
 
-        const newPrefix = args[1];
-
-        threadData.settings.prefix = newPrefix;
+        threadData.settings.prefix = args[1];
         Threads.set(threadID, threadData);
 
         return api.sendMessage(
-          `✅ تم تغيير بادئة المجموعة إلى:\n『 ${newPrefix} 』`,
+          `✅ تم تغيير بادئة المجموعة إلى:\n⧉⭅『${args[1]}』`,
           threadID
         );
       }
 
-      // ===============================
-      // تفعيل / تعطيل العمل بدون بادئة
-      // ===============================
-      if (args[0] === 'noprefix') {
+      // بادئة النظام
+      const systemPrefix = global.client.config.prefix || '⧉⭅『』';
 
-        if (!event.isGroup)
-          return api.sendMessage('❌ الأمر دا خاص بالمجموعات بس', threadID);
-
-        const status = args[1];
-
-        if (status !== 'on' && status !== 'off')
-          return api.sendMessage('⚠️ استخدم:\nprefix noprefix on\nأو\nprefix noprefix off', threadID);
-
-        threadData.settings.noPrefix = status === 'on';
-        Threads.set(threadID, threadData);
-
-        return api.sendMessage(
-          status === 'on'
-            ? '✅ تم تفعيل العمل بدون بادئة لهذه المجموعة'
-            : '❌ تم إيقاف العمل بدون بادئة',
-          threadID
-        );
-      }
-
-      // ===============================
-      // عرض المعلومات
-      // ===============================
       const message =
         `⧉⭅『 معلومات البادئة 』⧉⭅\n\n` +
-        `⚙️ بادئة النظام : 『 ${systemPrefix || 'لا يوجد'} 』\n` +
-        `👥 بادئة المجموعة : 『 ${groupPrefix || 'لا يوجد'} 』\n` +
-        `🚀 العمل بدون بادئة : ${threadData.settings.noPrefix ? 'مفعل ✅' : 'غير مفعل ❌'}`;
+        `⚙️ بادئة النظام : ⧉⭅『${systemPrefix}』\n` +
+        `👥 بادئة المجموعة : ⧉⭅『${groupPrefix}』`;
 
-      return api.sendMessage(message, threadID);
+      api.sendMessage(message, threadID);
 
     } catch (err) {
       console.error('خطأ في أمر prefix:', err);
-      return api.sendMessage('❌ حصل خطأ أثناء تنفيذ الأمر', event.threadID);
+      api.sendMessage('❌ حصل خطأ أثناء تنفيذ الأمر', event.threadID);
     }
   }
 };
