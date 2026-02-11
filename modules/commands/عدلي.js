@@ -22,22 +22,23 @@ module.exports = {
         const threadID = event.threadID;
         const messageID = event.messageID;
 
-        // تحقق من الرد على صورة
-        if (!event.messageReply || !event.messageReply.attachments || !event.messageReply.attachments[0]) {
-            return api.sendMessage('•-• الرجاء الرد على صورة', threadID, messageID);
-        }
-
-        const attachment = event.messageReply.attachments[0];
-        if (attachment.type !== 'photo') return api.sendMessage('•-• هذا ليس صورة', threadID, messageID);
-
-        const prompt = args.join(' ').trim();
-        if (!prompt) return api.sendMessage('•-• الرجاء إضافة وصف للتعديل', threadID, messageID);
-
-        const infoMsg = await api.sendMessage('•-• 🎨 جاري تعديل الصورة...', threadID, messageID);
-        const processingID = infoMsg.messageID;
-
         try {
-            // إعداد مجلد مؤقت
+            // تحقق من الرد على صورة
+            if (!event.messageReply || !event.messageReply.attachments || !event.messageReply.attachments[0])
+                return api.sendMessage('•-• الرجاء الرد على صورة', threadID, messageID);
+
+            const attachment = event.messageReply.attachments[0];
+            if (attachment.type !== 'photo')
+                return api.sendMessage('•-• هذا ليس صورة', threadID, messageID);
+
+            const prompt = args.join(' ').trim();
+            if (!prompt)
+                return api.sendMessage('•-• الرجاء إضافة وصف للتعديل', threadID, messageID);
+
+            const infoMsg = await api.sendMessage('•-• 🎨 جاري تعديل الصورة...', threadID, messageID);
+            const processingID = infoMsg.messageID;
+
+            // إنشاء مجلد مؤقت
             const cacheDir = __dirname + "/cache";
             if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
@@ -52,6 +53,7 @@ module.exports = {
                 `_ga=GA1.1.${Math.floor(Math.random() * 2000000000)}.${timestamp}`,
                 `sbox-guid=${sboxGuid}`
             ].join('; ');
+
             const client = axios.create({
                 headers: {
                     'Cookie': cookies,
@@ -64,9 +66,14 @@ module.exports = {
             if (stsRes.data.code !== 100000) throw new Error('فشل في الحصول على STS Token');
             const stsData = stsRes.data.data;
 
-            // رفع الصورة إلى OSS
-            const fileName = `${uuidv4()}.jpg`;
-            const ossPath = `notegpt/web3in1/${fileName}`;
+            // رفع الصورة إلى OSS بعد تحميلها مؤقتًا
+            const tempFile = `${cacheDir}/${uuidv4()}.jpg`;
+            const imageResponse = await axios.get(attachment.url, { responseType: 'stream' });
+            const writer = fs.createWriteStream(tempFile);
+            imageResponse.data.pipe(writer);
+            await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
+
+            const ossPath = `notegpt/web3in1/${uuidv4()}.jpg`;
             const ossClient = new OSS({
                 region: 'oss-us-west-1',
                 accessKeyId: stsData.AccessKeyId,
@@ -74,8 +81,7 @@ module.exports = {
                 stsToken: stsData.SecurityToken,
                 bucket: 'nc-cdn'
             });
-            const imageResponse = await axios.get(attachment.url, { responseType: 'stream' });
-            await ossClient.putStream(ossPath, imageResponse.data);
+            await ossClient.put(ossPath, tempFile);
             const uploadedImageUrl = `https://nc-cdn.oss-us-west-1.aliyuncs.com/${ossPath}`;
 
             // بدء تعديل الصورة
@@ -84,51 +90,44 @@ module.exports = {
                 type: 60,
                 user_prompt: prompt,
                 aspect_ratio: "match_input_image",
-                num: 4,
+                num: 1,
                 model: "google/nano-banana",
                 sub_type: 3
             }, { headers: { 'accept': 'application/json, text/plain, */*' } });
+
             if (startRes.data.code !== 100000) throw new Error('فشل في بدء تحرير الصورة');
             const sessionId = startRes.data.data.session_id;
 
             // متابعة حالة التعديل
-            let results = [];
-            let attempts = 0;
-            while (attempts < 30) {
+            let resultUrl = null;
+            for (let i = 0; i < 20; i++) {
                 const statusRes = await client.get(`https://notegpt.io/api/v2/images/status?session_id=${sessionId}`, { headers: { 'accept': 'application/json, text/plain, */*' } });
                 if (statusRes.data.code === 100000) {
                     const status = statusRes.data.data.status;
                     if (status === 'succeeded') {
-                        results = statusRes.data.data.results;
+                        resultUrl = statusRes.data.data.results[0].url;
                         break;
                     } else if (status === 'failed') throw new Error('فشل في تحرير الصورة');
                 }
-                attempts++;
-                await new Promise(resolve => setTimeout(resolve, 4000));
-            }
-            if (results.length === 0) throw new Error('انتهت مهلة الانتظار');
-
-            // تحميل الصور المعدلة
-            const editedImages = [];
-            const filesToDelete = [];
-            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            for (let i = 0; i < results.length; i++) {
-                const filePath = `${cacheDir}/edited_${uniqueId}_${i + 1}.png`;
-                const res = await axios.get(results[i].url, { responseType: 'stream' });
-                const writer = fs.createWriteStream(filePath);
-                res.data.pipe(writer);
-                await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
-                editedImages.push(fs.createReadStream(filePath));
-                filesToDelete.push(filePath);
+                await new Promise(r => setTimeout(r, 3000));
             }
 
-            await api.editMessage({ body: '•-• ✨ تم تعديل الصورة', attachment: editedImages }, processingID);
+            if (!resultUrl) throw new Error('انتهت مهلة الانتظار');
+
+            // تحميل الصورة المعدلة وإرسالها
+            const editedFile = `${cacheDir}/${uuidv4()}.png`;
+            const editedRes = await axios.get(resultUrl, { responseType: 'stream' });
+            const writer2 = fs.createWriteStream(editedFile);
+            editedRes.data.pipe(writer2);
+            await new Promise((resolve, reject) => { writer2.on('finish', resolve); writer2.on('error', reject); });
+
+            await api.editMessage({ body: '•-• ✨ تم تعديل الصورة', attachment: fs.createReadStream(editedFile) }, processingID);
 
             // مسح الملفات المؤقتة
-            setTimeout(() => filesToDelete.forEach(f => fs.existsSync(f) && fs.unlinkSync(f)), 3000);
+            [tempFile, editedFile].forEach(f => fs.existsSync(f) && fs.unlinkSync(f));
 
         } catch (error) {
-            await api.editMessage(`•-• ❌ حدث خطأ أثناء تعديل الصورة: ${error.message}`, processingID);
+            await api.sendMessage(`•-• ❌ حدث خطأ أثناء تعديل الصورة: ${error.message}`, threadID, messageID);
         }
     }
 };
