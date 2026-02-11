@@ -1,11 +1,12 @@
 const axios = require('axios');
-const fs = require('fs');
+const fs = require('fs-extra');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const OSS = require('ali-oss');
 
 module.exports = {
     config: {
-        name: 'عدلي',
+        name: 'تعديل',
         version: '1.0',
         author: 'محمد',
         countDown: 3,
@@ -14,7 +15,7 @@ module.exports = {
         description: 'تعديل الصور باستخدام AI',
         category: 'ai',
         guide: {
-            en: '{pn} <وصف التعديل> والرد على صورة'
+            ar: '{pn} <وصف التعديل> والرد على صورة'
         }
     },
 
@@ -22,27 +23,32 @@ module.exports = {
         const threadID = event.threadID;
         const messageID = event.messageID;
 
+        if (!event.messageReply || !event.messageReply.attachments?.length) {
+            return api.sendMessage('•-• الرجاء الرد على صورة', threadID, messageID);
+        }
+
+        const attachment = event.messageReply.attachments[0];
+        if (attachment.type !== 'photo') {
+            return api.sendMessage('•-• هذا ليس صورة', threadID, messageID);
+        }
+
+        const prompt = args.join(' ').trim();
+        if (!prompt) return api.sendMessage('•-• الرجاء إضافة وصف للتعديل', threadID, messageID);
+
         try {
-            // تحقق من الرد على صورة
-            if (!event.messageReply || !event.messageReply.attachments || !event.messageReply.attachments[0])
-                return api.sendMessage('•-• الرجاء الرد على صورة', threadID, messageID);
-
-            const attachment = event.messageReply.attachments[0];
-            if (attachment.type !== 'photo')
-                return api.sendMessage('•-• هذا ليس صورة', threadID, messageID);
-
-            const prompt = args.join(' ').trim();
-            if (!prompt)
-                return api.sendMessage('•-• الرجاء إضافة وصف للتعديل', threadID, messageID);
-
             const infoMsg = await api.sendMessage('•-• 🎨 جاري تعديل الصورة...', threadID, messageID);
             const processingID = infoMsg.messageID;
 
             // إنشاء مجلد مؤقت
-            const cacheDir = __dirname + "/cache";
-            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+            const cacheDir = path.resolve(__dirname, 'cache');
+            await fs.ensureDir(cacheDir);
 
-            // تهيئة العميل
+            // تحميل الصورة مؤقتاً
+            const tempFile = path.resolve(cacheDir, `input_${uuidv4()}.jpg`);
+            const imageRes = await axios.get(attachment.url, { responseType: 'arraybuffer' });
+            await fs.writeFile(tempFile, imageRes.data);
+
+            // إعداد العميل
             const timestamp = Date.now();
             const anonymousId = uuidv4();
             const sboxGuid = Buffer.from(`${timestamp}|${Math.floor(Math.random() * 1000)}|${Math.floor(Math.random() * 1000000000)}`).toString('base64');
@@ -66,13 +72,7 @@ module.exports = {
             if (stsRes.data.code !== 100000) throw new Error('فشل في الحصول على STS Token');
             const stsData = stsRes.data.data;
 
-            // رفع الصورة إلى OSS بعد تحميلها مؤقتًا
-            const tempFile = `${cacheDir}/${uuidv4()}.jpg`;
-            const imageResponse = await axios.get(attachment.url, { responseType: 'stream' });
-            const writer = fs.createWriteStream(tempFile);
-            imageResponse.data.pipe(writer);
-            await new Promise((resolve, reject) => { writer.on('finish', resolve); writer.on('error', reject); });
-
+            // رفع الصورة إلى OSS
             const ossPath = `notegpt/web3in1/${uuidv4()}.jpg`;
             const ossClient = new OSS({
                 region: 'oss-us-west-1',
@@ -102,12 +102,12 @@ module.exports = {
             let resultUrl = null;
             for (let i = 0; i < 20; i++) {
                 const statusRes = await client.get(`https://notegpt.io/api/v2/images/status?session_id=${sessionId}`, { headers: { 'accept': 'application/json, text/plain, */*' } });
-                if (statusRes.data.code === 100000) {
-                    const status = statusRes.data.data.status;
-                    if (status === 'succeeded') {
-                        resultUrl = statusRes.data.data.results[0].url;
+                const statusData = statusRes.data;
+                if (statusData.code === 100000) {
+                    if (statusData.data.status === 'succeeded') {
+                        resultUrl = statusData.data.results[0].url;
                         break;
-                    } else if (status === 'failed') throw new Error('فشل في تحرير الصورة');
+                    } else if (statusData.data.status === 'failed') throw new Error('فشل في تحرير الصورة');
                 }
                 await new Promise(r => setTimeout(r, 3000));
             }
@@ -115,19 +115,18 @@ module.exports = {
             if (!resultUrl) throw new Error('انتهت مهلة الانتظار');
 
             // تحميل الصورة المعدلة وإرسالها
-            const editedFile = `${cacheDir}/${uuidv4()}.png`;
-            const editedRes = await axios.get(resultUrl, { responseType: 'stream' });
-            const writer2 = fs.createWriteStream(editedFile);
-            editedRes.data.pipe(writer2);
-            await new Promise((resolve, reject) => { writer2.on('finish', resolve); writer2.on('error', reject); });
+            const editedFile = path.resolve(cacheDir, `edited_${uuidv4()}.png`);
+            const editedRes = await axios.get(resultUrl, { responseType: 'arraybuffer' });
+            await fs.writeFile(editedFile, editedRes.data);
 
             await api.editMessage({ body: '•-• ✨ تم تعديل الصورة', attachment: fs.createReadStream(editedFile) }, processingID);
 
-            // مسح الملفات المؤقتة
-            [tempFile, editedFile].forEach(f => fs.existsSync(f) && fs.unlinkSync(f));
+            // تنظيف الملفات المؤقتة
+            await fs.remove(tempFile);
+            await fs.remove(editedFile);
 
-        } catch (error) {
-            await api.sendMessage(`•-• ❌ حدث خطأ أثناء تعديل الصورة: ${error.message}`, threadID, messageID);
+        } catch (err) {
+            api.sendMessage(`•-• ❌ حدث خطأ أثناء تعديل الصورة: ${err.message}`, threadID, messageID);
         }
     }
 };
