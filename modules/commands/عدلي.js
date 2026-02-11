@@ -1,105 +1,144 @@
-const Jimp = require("jimp");
-const Canvacord = require("canvacord");
-const fs = require("fs");
-const remobg = require("remove.bg");
+const axios = require('axios');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
+const OSS = require('ali-oss');
 
-const RBG_KEYS = [
-    "cHLxHkyovvnFKA46bWDoy5ab0",
-    "tgrhopqLJG5cz17zr9GFVRSP",
-    "dCtKvWzkwn4eAYkxF3jUg95h",
-    "FxhCoWrhbjE5rGdQcQXrR6L1",
-    "xw2tzRUfTwNpPCqApBk3PMgP"
-];
+function setupImageEditClient() {
+    const timestamp = Date.now();
+    const anonymousId = uuidv4();
+    const sboxGuid = Buffer.from(`${timestamp}|${Math.floor(Math.random() * 1000)}|${Math.floor(Math.random() * 1000000000)}`).toString('base64');
+
+    const cookies = [
+        `anonymous_user_id=${anonymousId}`,
+        `i18n_redirected=en`,
+        `_ga_PFX3BRW5RQ=GS2.1.s${timestamp}$o1$g0$t${timestamp}$j60$l0$h${timestamp + 100000}`,
+        `_ga=GA1.1.${Math.floor(Math.random() * 2000000000)}.${timestamp}`,
+        `sbox-guid=${sboxGuid}`
+    ].join('; ');
+
+    return axios.create({
+        headers: {
+            'Cookie': cookies,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
+        }
+    });
+}
+
+async function getStsToken(client) {
+    const response = await client.get('https://notegpt.io/api/v1/oss/sts-token', {
+        headers: { 'accept': '*/*', 'x-token': '' }
+    });
+    if (response.data.code === 100000) return response.data.data;
+    throw new Error('فشل في الحصول على STS Token');
+}
+
+async function uploadImageToOSS(imageUrl, stsData) {
+    const fileName = `${uuidv4()}.jpg`;
+    const ossPath = `notegpt/web3in1/${fileName}`;
+    const ossClient = new OSS({
+        region: 'oss-us-west-1',
+        accessKeyId: stsData.AccessKeyId,
+        accessKeySecret: stsData.AccessKeySecret,
+        stsToken: stsData.SecurityToken,
+        bucket: 'nc-cdn'
+    });
+    const imageResponse = await axios.get(imageUrl, { responseType: 'stream' });
+    await ossClient.putStream(ossPath, imageResponse.data);
+    return `https://nc-cdn.oss-us-west-1.aliyuncs.com/${ossPath}`;
+}
+
+async function startImageEdit(client, imageUrl, prompt) {
+    const response = await client.post('https://notegpt.io/api/v2/images/handle', {
+        "image_url": imageUrl,
+        "type": 60,
+        "user_prompt": prompt,
+        "aspect_ratio": "match_input_image",
+        "num": 4,
+        "model": "google/nano-banana",
+        "sub_type": 3
+    }, {
+        headers: { 'accept': 'application/json, text/plain, */*' }
+    });
+    if (response.data.code === 100000) return response.data.data.session_id;
+    throw new Error('فشل في بدء تحرير الصورة');
+}
+
+async function trackEditingStatus(client, sessionId) {
+    let attempts = 0;
+    while (attempts < 30) {
+        const response = await client.get(`https://notegpt.io/api/v2/images/status?session_id=${sessionId}`, {
+            headers: { 'accept': 'application/json, text/plain, */*' }
+        });
+        if (response.data.code === 100000) {
+            const status = response.data.data.status;
+            if (status === 'succeeded') return response.data.data.results;
+            else if (status === 'failed') throw new Error('فشل في تحرير الصورة');
+        }
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 4000));
+    }
+    throw new Error('انتهت مهلة الانتظار');
+}
 
 module.exports = {
     config: {
         name: "عدلي",
-        version: "2.0",
-        author: "FantoX",
-        countDown: 0,
+        version: "1.0",
+        author: "AYOUB",
         prefix: true,
-        adminOnly: false,
-        description: "تعديل الصور بشكل ذكي وحر: blur, circle, jail, removebg",
-        category: "fun",
+        description: "تعديل الصور باستخدام AI",
+        category: "ai",
         guide: {
-            ar: "{pn}imageedit (أو الرد على صورة مع أي وصف)"
-        },
+            en: "{pn} <وصف التعديل> والرد على صورة"
+        }
     },
 
     onStart: async ({ api, event, args }) => {
-        const threadID = event.threadID;
-        const messageID = event.messageID;
-
-        const text = args.join(" ").toLowerCase(); // وصف المستخدم
-
-        if (!event.messageReply || !event.messageReply.attachments?.[0]) {
-            return api.sendMessage("❌ الرجاء الرد على صورة لتطبيق التعديل!", threadID, messageID);
+        if (!event.messageReply || !event.messageReply.attachments || !event.messageReply.attachments[0]) {
+            return api.sendMessage('•-• الرجاء الرد على صورة', event.threadID, event.messageID);
         }
 
-        const imageBuffer = await event.messageReply.download();
+        const attachment = event.messageReply.attachments[0];
+        if (attachment.type !== 'photo') return api.sendMessage('•-• هذا ليس صورة', event.threadID, event.messageID);
+
+        const prompt = args.join(' ').trim();
+        if (!prompt) return api.sendMessage('•-• الرجاء إضافة وصف للتعديل', event.threadID, event.messageID);
+
+        const infoMsg = await api.sendMessage('•-• 🎨 جاري تعديل الصورة...', event.threadID, event.messageID);
+        const processingID = infoMsg.messageID;
 
         try {
-            // 1️⃣ تحديد نوع التعديل تلقائيًا حسب النص
-            let applied = false;
+            const cacheDir = __dirname + "/cache";
+            if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
-            // blur
-            if (text.includes("blur") || text.includes("ضبابية")) {
-                let level = parseInt(text.match(/\d+/)) || 5;
-                const img = await Jimp.read(imageBuffer);
-                img.blur(level);
-                img.getBuffer(Jimp.MIME_PNG, (err, buffer) => {
-                    if (!err) api.sendMessage({ image: buffer, caption: "_تم التعديل: blur_" }, threadID, messageID);
+            const client = setupImageEditClient();
+            const stsData = await getStsToken(client);
+            const uploadedImageUrl = await uploadImageToOSS(attachment.url, stsData);
+            const sessionId = await startImageEdit(client, uploadedImageUrl, prompt);
+            const results = await trackEditingStatus(client, sessionId);
+
+            const editedImages = [];
+            const filesToDelete = [];
+            const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            for (let i = 0; i < results.length; i++) {
+                const filePath = `${cacheDir}/edited_${uniqueId}_${i + 1}.png`;
+                const response = await axios.get(results[i].url, { responseType: 'stream' });
+                const writer = fs.createWriteStream(filePath);
+                response.data.pipe(writer);
+                await new Promise((resolve, reject) => {
+                    writer.on('finish', resolve);
+                    writer.on('error', reject);
                 });
-                applied = true;
+                editedImages.push(fs.createReadStream(filePath));
+                filesToDelete.push(filePath);
             }
 
-            // circle
-            if (text.includes("circle") || text.includes("دائرة")) {
-                const img = await Jimp.read(imageBuffer);
-                img.circle();
-                img.getBuffer(Jimp.MIME_JPEG, (err, buffer) => {
-                    if (!err) api.sendMessage({ image: buffer, caption: "_تم التعديل: circle_" }, threadID, messageID);
-                });
-                applied = true;
-            }
+            await api.editMessage({ body: '•-• ✨ تم تعديل الصورة', attachment: editedImages }, processingID);
+            setTimeout(() => filesToDelete.forEach(file => fs.existsSync(file) && fs.unlinkSync(file)), 3000);
 
-            // jail
-            if (text.includes("jail") || text.includes("سجن")) {
-                const result = await Canvacord.jail(imageBuffer, false);
-                api.sendMessage({ image: result, caption: "_تم التعديل: jail_" }, threadID, messageID);
-                applied = true;
-            }
-
-            // removebg
-            if (text.includes("removebg") || text.includes("خلفية")) {
-                const rbgKEY = RBG_KEYS[Math.floor(Math.random() * RBG_KEYS.length)];
-                const inputFile = "./System/Cache/input.png";
-                const outputFile = "./System/Cache/removeBgOUT.png";
-                fs.writeFileSync(inputFile, imageBuffer);
-
-                await remobg.removeBackgroundFromImageFile({
-                    path: inputFile,
-                    apiKey: rbgKEY,
-                    size: "regular",
-                    type: "auto",
-                    scale: "100%",
-                    outputFile,
-                });
-
-                api.sendMessage({ image: fs.readFileSync(outputFile), caption: "_تم التعديل: removebg_" }, threadID, messageID);
-
-                fs.unlinkSync(inputFile);
-                fs.unlinkSync(outputFile);
-                applied = true;
-            }
-
-            // إذا لم يفهم أي تعديل
-            if (!applied) {
-                api.sendMessage("❌ لم أتمكن من تحديد تعديل من رسالتك، يمكنك كتابة blur, circle, jail, removebg أو وصف بالعربية.", threadID, messageID);
-            }
-        } catch (err) {
-            console.error(err);
-            api.sendMessage(`❌ حدث خطأ أثناء التعديل: ${err.message}`, threadID, messageID);
+        } catch (error) {
+            await api.editMessage(`•-• ❌ حدث خطأ أثناء تعديل الصورة: ${error.message}`, processingID);
         }
-    },
+    }
 };
