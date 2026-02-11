@@ -29,7 +29,7 @@ async function downloadImage(url) {
 
 module.exports = {
     config: {
-        name: 'help',
+        name: 'اوامر ',
         version: '1.0.0',
         author: 'Hridoy (Edited by Abu Obaida)',
         countDown: 5,
