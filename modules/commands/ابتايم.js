@@ -32,7 +32,7 @@ module.exports = {
       const hours = Math.floor((uptimeSeconds % 86400) / 3600);
       const minutes = Math.floor((uptimeSeconds % 3600) / 60);
       const seconds = Math.floor(uptimeSeconds % 60);
-      const uptime = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      const uptime = `${days}ي ${hours}س ${minutes}د ${seconds}ث`;
 
       const systemInfo = {
         os: `${os.type()} ${os.arch()}`,
@@ -48,29 +48,29 @@ module.exports = {
         time: moment().format('hh:mm:ss A'),
         users: global.users?.length || 0,
         threads: global.threads?.length || 0,
-        ping: Math.floor(performance.now()) + 'ms',
-        status: '⚠️ | ⊱𝑴𝗈𝖽𝖾𝗋𝖺𝗍𝖾 ⊱𝑳𝗈𝖺𝖽',
+        ping: Math.floor(performance.now()) + 'ملليثانية',
+        status: '⚠️ | تحميل متوسط',
       };
 
       const message = `
 ⟡───── ⊱𝑼𝑷𝑻𝑰𝑴𝑬 ────⟡
-⏰  ${uptime}
+⏰  مدة التشغيل: ${uptime}
 
 ⟡─────── ⊱𝑺𝒀𝑺𝑻𝑬𝑴 ─────⟡
-⊱𝑶𝑺        » ${systemInfo.os}
-⊱𝑳𝑨𝑵𝑮     » ${systemInfo.node}
-⊱𝑪𝑷𝑼       » ${systemInfo.cpu}
-⊱𝑺𝑻𝑶𝑹𝑨𝑮𝑬 » ${systemInfo.storage}
-⊱𝑪𝑷𝑼 𝑼𝑺𝑬  » ${systemInfo.cpuUsage}
-⊱𝑹𝑨𝑴 𝑼𝑺𝑬  » ${systemInfo.ramUsage}
+⊱النظام        » ${systemInfo.os}
+⊱نسخة Node     » ${systemInfo.node}
+⊱المعالج       » ${systemInfo.cpu}
+⊱الذاكرة الحرة » ${systemInfo.storage}
+⊱استخدام المعالج » ${systemInfo.cpuUsage}
+⊱استخدام الرام » ${systemInfo.ramUsage}
 
 ⟡────── ⊱𝑶𝑻𝑯𝑬𝑹 ──────⟡
-⊱𝑫𝑨𝑻𝑬    » ${otherInfo.date}
-⊱𝑻𝑰𝑴𝑬    » ${otherInfo.time}
-⊱𝑼𝑺𝑬𝑹𝑺   » ${otherInfo.users}
-⊱𝑻𝑯𝑹𝑬𝑨𝑫𝑺 » ${otherInfo.threads}
-⊱𝑷𝑰𝑵𝑮    » ${otherInfo.ping}
-⊱𝑺𝑻𝑨𝑻𝑼𝑺  » ${otherInfo.status}
+⊱التاريخ    » ${otherInfo.date}
+⊱الوقت      » ${otherInfo.time}
+⊱المستخدمين » ${otherInfo.users}
+⊱المجموعات  » ${otherInfo.threads}
+⊱زمن الاستجابة » ${otherInfo.ping}
+⊱الحالة      » ${otherInfo.status}
 ⟡─────────────────────⟡
 `;
 
