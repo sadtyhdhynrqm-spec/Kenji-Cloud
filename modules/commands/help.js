@@ -16,7 +16,6 @@ function readDB(filePath) {
     }
 }
 
-// تحميل الصورة مؤقتاً
 async function downloadImage(url) {
     const tempPath = path.join(__dirname, 'temp_image.jpg');
     const response = await axios({
@@ -31,8 +30,8 @@ async function downloadImage(url) {
 module.exports = {
     config: {
         name: 'اوامر',
-        version: '3.0',
-        author: 'Hridoy + Edited by Abu Obaida',
+        version: '5.0',
+        author: 'Edited by Abu Obaida',
         countDown: 5,
         prefix: true,
         groupAdminOnly: false,
@@ -47,7 +46,6 @@ module.exports = {
         const config = readDB(configPath);
         const input = args[0];
 
-        // تحميل جميع الأوامر
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         const commands = {};
 
@@ -75,7 +73,9 @@ module.exports = {
                 self.findIndex(c => c.name === cmd.name) === index
             );
 
-        // عرض تفاصيل أمر محدد
+        // =========================
+        // عرض تفاصيل أمر
+        // =========================
         if (input) {
             const commandConfig = commands[input.toLowerCase()];
 
@@ -84,33 +84,35 @@ module.exports = {
             }
 
             let detailMessage =
-`📌 معلومات الأمر
+`━━━━━━━━━━•✧•━━━━━━━━━━━
+📌 معلومات الأمر
+
 الاسم: ${commandConfig.name}
 الوصف: ${commandConfig.description}
 المؤلف: ${commandConfig.author}
 الإصدار: ${commandConfig.version}`;
 
             if (commandConfig.aliases?.length) {
-                detailMessage += `\nالأسماء المستعارة: ${commandConfig.aliases.join(' ⌯ ')}`;
+                detailMessage += `\nالأسماء المستعارة: ${commandConfig.aliases.join(' ⌁ ')}`;
             }
 
             if (commandConfig.guide?.ar) {
-                detailMessage += `\nالاستخدام:\n${commandConfig.guide.ar.replace(/{pn}/g, config.prefix + commandConfig.name)}`;
+                detailMessage += `\n\nطريقة الاستخدام:\n${commandConfig.guide.ar.replace(/{pn}/g, config.prefix + commandConfig.name)}`;
             }
+
+            detailMessage += `\n━━━━━━━━━━•✧•━━━━━━━━━━━`;
 
             return api.sendMessage(detailMessage, event.threadID);
         }
 
         // =========================
-        // تقسيم الفئات وجعلها جميلة
+        // تصنيف الأوامر
         // =========================
         const categories = {};
 
         const categoryMap = {
             'group': 'المجموعة',
-            'Group': 'المجموعة',
             'image': 'الصور',
-            'وسائط': 'الصور',
             'media': 'الوسائط',
             'admin': 'الإدارة',
             'fun': 'الترفيه',
@@ -118,63 +120,86 @@ module.exports = {
             'music': 'الموسيقى',
             'video': 'الفيديو',
             'ai': 'الذكاء AI الأقوى',
-            'tools': 'الآداوات المبتكرة',
-            'utility': 'الخـدمات السريعة',
+            'tools': 'الأدوات',
+            'utility': 'الخدمات السريعة',
             'owner': 'المطور',
             'level': 'المستوى',
             'game': 'اللعب',
             'play': 'اللعب',
         };
 
-        // دمج وتوحيد الفئات
         for (const cmd of uniqueCommands) {
-            let category = cmd.category || "أخرى";
+            let category = cmd.category;
+
+            // ✅ لو الأمر تبع مطور
+            if (
+                cmd.category === 'owner' ||
+                cmd.category === 'المطور' ||
+                cmd.role === 2
+            ) {
+                category = 'المطور';
+            }
+
+            // ✅ لو ما عندو قسم -> الترفيه
+            if (!category) {
+                category = 'الترفيه';
+            }
+
             category = categoryMap[category] || category;
 
             if (!categories[category]) categories[category] = [];
             categories[category].push(cmd.name);
         }
 
-        // دمج الفئات الصغيرة في "أخرى"
-        const finalCategories = {};
-        for (const [cat, cmds] of Object.entries(categories)) {
-            if (cmds.length < 3 && cat !== "أخرى") {
-                if (!finalCategories['أخرى']) finalCategories['أخرى'] = [];
-                finalCategories['أخرى'].push(...cmds);
-            } else {
-                finalCategories[cat] = cmds;
-            }
-        }
-
-        // ترتيب الفئات
         const orderedCats = [
-            'المجموعة', 'الخـدمات السريعة', 'الصور', 'الوسائط', 'الموسيقى', 'الفيديو', 'الذكاء AI الأقوى',
-            'الترفيه', 'اللعب', 'عشوائي', 'المستوى', 'المطور', 'الآداوات المبتكرة', 'أخرى'
+            'المجموعة',
+            'الخدمات السريعة',
+            'الصور',
+            'الوسائط',
+            'الموسيقى',
+            'الفيديو',
+            'الذكاء AI الأقوى',
+            'الترفيه',
+            'اللعب',
+            'عشوائي',
+            'المستوى',
+            'المطور',
+            'الأدوات'
         ];
 
-        // بناء الرسالة بالنمط الفني
+        // =========================
+        // بناء القائمة
+        // =========================
         let finalMessage = "";
+        const line = "━━━━━━━━━━•✧•━━━━━━━━━━";
+
         for (const category of orderedCats) {
-            const cmds = finalCategories[category];
+            const cmds = categories[category];
             if (!cmds || cmds.length === 0) continue;
 
-            // إخفاء فئة المطور لغير المطور
-            if (category === "المطور" && !config.adminBot?.includes(event.senderID)) continue;
-
-            finalMessage += `───── •✧• ─────\n      𖠂 ${category}\n├\n`;
-
-            // تقسيم الأوامر في صفوف 3 أوامر لكل صف
-            for (let i = 0; i < cmds.length; i += 3) {
-                const row = cmds.slice(i, i + 3).map(c => `⤹⌯ ${c}`).join('  ');
-                finalMessage += `│ ${row}\n`;
+            // إخفاء قسم المطور لغيرك
+            if (category === "المطور" && !config.adminBot?.includes(event.senderID)) {
+                continue;
             }
 
-            finalMessage += '───── •✧• ─────\n';
+            finalMessage += `${line}\n`;
+            finalMessage += `『 ${category} 』\n\n`;
+
+            for (let i = 0; i < cmds.length; i += 3) {
+                const row = cmds
+                    .slice(i, i + 3)
+                    .map(c => `⤹⌯ ${c}`)
+                    .join("   ");
+                finalMessage += `${row}\n`;
+            }
+
+            finalMessage += "\n";
         }
 
-        finalMessage += `≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡≡\n『عدد الاوامر: ${uniqueCommands.length}』`;
+        finalMessage += `${line}\n`;
+        finalMessage += `•✧• عدد الأوامر: ${uniqueCommands.length}\n`;
+        finalMessage += `${line}`;
 
-        // صورة خلفية جميلة
         const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
 
         return api.sendMessage(
