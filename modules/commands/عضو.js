@@ -44,7 +44,7 @@ module.exports = {
         }
 
         api.sendMessage(
-          `✅ | تم إضافة العضو بنجاح إلى المجموعة.`,
+          ``,
           event.threadID
         );
 
