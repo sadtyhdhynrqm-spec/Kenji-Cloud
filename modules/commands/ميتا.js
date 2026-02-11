@@ -3,7 +3,7 @@ const axios = require('axios');
 module.exports = {
     config: {
         name: 'ميتا',
-        version: '1.0',
+        version: '1.1',
         author: 'Hridoy | تعريب',
         countDown: 5,
         prefix: true,
@@ -11,7 +11,7 @@ module.exports = {
         description: 'الدردشة مع الذكاء الاصطناعي.',
         category: 'الذكاء_الاصطناعي',
         guide: {
-            ar: '   {pn}ذكاء <سؤالك>'
+            ar: '{pn}ذكاء <سؤالك>'
         },
     },
 
@@ -31,25 +31,53 @@ module.exports = {
         try {
             console.log(`طلب ذكاء اصطناعي: ${query}`);
 
+            // استدعاء API مع timeout
             const response = await axios.get(
                 `https://hridoy-apis.onrender.com/ai/ai4chat?text=${encodeURIComponent(query)}`,
                 { timeout: 15000 }
             );
 
-            console.log('رد الذكاء الاصطناعي:', response.data);
+            // التأكد من وجود البيانات قبل الإرسال
+            const result = response.data?.result || response.data?.message || null;
 
-            if (response.data.status && response.data.result) {
+            if (result) {
                 api.sendMessage(
-                    `🤖 | الذكاء الاصطناعي يقول:\n\n${response.data.result}`,
+                    `| الذكاء الاصطناعي يقول:\n\n${result}`,
                     threadID,
                     messageID
                 );
             } else {
-                throw new Error('الرد غير صالح من السيرفر');
+                console.warn('الرد غير صالح أو فارغ من السيرفر:', response.data);
+                api.sendMessage(
+                    '⚠️ لم استطع الحصول على رد صالح من الذكاء الاصطناعي.\n🔁 حاول مرة أخرى لاحقًا.',
+                    threadID,
+                    messageID
+                );
             }
 
         } catch (error) {
-            console.error('خطأ الذكاء الاصطناعي:', error.message);
+            console.error('خطأ أثناء الاتصال بالذكاء الاصطناعي:', error.message);
+
+            // Retry صغير لو كان timeout
+            if (error.code === 'ECONNABORTED') {
+                try {
+                    const retry = await axios.get(
+                        `https://hridoy-apis.onrender.com/ai/ai4chat?text=${encodeURIComponent(query)}`,
+                        { timeout: 15000 }
+                    );
+                    const retryResult = retry.data?.result || retry.data?.message || null;
+                    if (retryResult) {
+                        return api.sendMessage(
+                            `| الذكاء الاصطناعي يقول:\n\n${retryResult}`,
+                            threadID,
+                            messageID
+                        );
+                    }
+                } catch (retryError) {
+                    console.error('Retry فشل:', retryError.message);
+                }
+            }
+
             api.sendMessage(
                 '⚠️ حصل خطأ أثناء الاتصال بالذكاء الاصطناعي.\n🔁 حاول مرة أخرى لاحقًا.',
                 threadID,
