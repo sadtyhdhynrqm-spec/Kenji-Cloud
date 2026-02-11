@@ -1,6 +1,6 @@
 module.exports = {
     config: {
-        name: 'uid',
+        name: 'ايدي',
         version: '1.0',
         author: 'Hridoy',
         countDown: 5,
@@ -26,6 +26,6 @@ module.exports = {
             targetID = senderID;
         }
 
-        api.sendMessage(`The UID is: ${targetID}`, event.threadID);
+        api.sendMessage(`  ${targetID}`, event.threadID);
     },
 };
