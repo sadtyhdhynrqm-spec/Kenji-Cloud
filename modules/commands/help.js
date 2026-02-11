@@ -51,7 +51,6 @@ module.exports = {
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         const commands = {};
 
-        // تحميل كل الأوامر
         for (const file of commandFiles) {
             try {
                 delete require.cache[require.resolve(path.join(commandsPath, file))];
@@ -110,42 +109,33 @@ module.exports = {
         }
 
         // =================================
-        // تقسيم الفئات
+        // تقسيم الفئات ديناميكياً
         // =================================
-        const categorized = {
-            "زكاء صناعي": [],
-            "المطور": [],
-            "الترفيه": [],
-            "المجموعة": [],
-            "أخرى": []
-        };
+        const categories = {};
 
         for (const cmd of uniqueCommands) {
             const category = cmd.category || "أخرى";
 
-            if (categorized[category]) {
-                categorized[category].push(cmd.name);
-            } else {
-                categorized["أخرى"].push(cmd.name);
-            }
+            if (!categories[category]) categories[category] = [];
+            categories[category].push(cmd.name);
         }
 
         let finalMessage = "";
 
-        for (const category in categorized) {
+        for (const [category, cmds] of Object.entries(categories)) {
 
             // إخفاء فئة المطور لغير المطور
             if (category === "المطور" && !config.adminBot?.includes(event.senderID)) {
                 continue;
             }
 
-            if (categorized[category].length === 0) continue;
+            if (cmds.length === 0) continue;
 
             finalMessage +=
 `╭═══════════════════╮
 │ 📂 ${category}
 ├═══════════════════
-│ ${categorized[category].join(' ⌯ ')}
+│ ${cmds.join(' ⌯ ')}
 ╰═══════════════════╯
 
 `;
