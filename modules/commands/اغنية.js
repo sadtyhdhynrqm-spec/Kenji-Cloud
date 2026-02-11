@@ -29,12 +29,12 @@ const retryRequest = async (requestFunc, maxRetries = 3, baseDelay = 1000) => {
 module.exports = {
   config: {
     name: "اغنية",
-    version: "1.0",
+    version: "1.1",
     author: "Hridoy",
     countDown: 10,
     prefix: true,
     groupAdminOnly: false,
-    description: "تحميل أغنية من اغنية وإرسالها كملف صوتي",
+    description: "تحميل أغنية من Spotify وإرسالها كملف صوتي",
     category: "media",
     guide: {
       ar: "   {pn} اسم_الأغنية"
@@ -42,20 +42,19 @@ module.exports = {
   },
 
   onStart: async ({ event, api, args }) => {
+    const threadID = event.threadID;
+    const messageID = event.messageID;
+
+    if (!args[0]) {
+      return api.sendMessage('🎵 اكتب اسم الأغنية يا زول.', threadID, messageID);
+    }
+
+    const musicName = encodeURIComponent(args.join(" "));
+    const apiUrl = `https://hridoy-apis.vercel.app/play/spotify-v2?q=${musicName}&apikey=hridoyXQC`;
+
     try {
-      const threadID = event.threadID;
-      const messageID = event.messageID;
-
-      if (!args[0]) {
-        return api.sendMessage(
-          '🎵 اكتب اسم الأغنية يا زول.',
-          threadID,
-          messageID
-        );
-      }
-
-      const musicName = encodeURIComponent(args.join(" "));
-      const apiUrl = `https://hridoy-apis.vercel.app/play/spotify-v2?q=${musicName}&apikey=hridoyXQC`;
+      // تفاعل 🔂 مع رسالة المستخدم
+      await api.sendMessage('🔂 جاري تحميل الأغنية...', threadID, messageID);
 
       const apiResponse = await retryRequest(() =>
         axios.get(apiUrl, createAxiosConfig(45000, true))
@@ -65,14 +64,16 @@ module.exports = {
         throw new Error('ملف الصوت فاضي');
       }
 
+      // حفظ الأغنية مؤقتاً
       const cacheDir = path.resolve(__dirname, '..', 'cache');
       await fs.ensureDir(cacheDir);
       const audioPath = path.resolve(cacheDir, `spotify_${Date.now()}.mp3`);
       await fs.writeFile(audioPath, Buffer.from(apiResponse.data));
 
+      // إرسال الأغنية
       await api.sendMessage(
         {
-          body: `🎧 تفضل أغنيتك: ${args.join(" ")}`,
+          body: `🎧 تفضل أغنيتك: ${args.join(" ")} ✅`,
           attachment: createReadStream(audioPath)
         },
         threadID,
@@ -81,14 +82,10 @@ module.exports = {
       );
 
       log('info', `Spotify used by ${event.senderID}`);
-
     } catch (error) {
       log('error', `Spotify error: ${error.message}`);
-      api.sendMessage(
-        '⚠️ حصلت مشكلة في تحميل الأغنية، جرّب تاني.',
-        event.threadID,
-        event.messageID
-      );
+      // تعديل التفاعل بدل رسالة الخطأ
+      api.sendMessage(`❌ لم يتم تحميل الأغنية، حاول مرة تانية.`, threadID, messageID);
     }
   }
 };
