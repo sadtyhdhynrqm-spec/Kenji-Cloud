@@ -82,67 +82,75 @@ module.exports = {
             ar: '{pn} [@المستخدم|id] [الرسالة]'
         },
     },
+
     onStart: async ({ api, event, args }) => {
-        const { senderID, mentions } = event;
+        const { senderID, mentions, messageID, threadID } = event;
         let targetID;
         let message;
+        let mentionInfo = [];
 
+        // تحديد المستلم
         if (Object.keys(mentions).length > 0) {
             targetID = Object.keys(mentions)[0];
-            const mentionText = mentions[targetID];
-            message = args.join(' ').replace(mentionText, '').trim();
+            const mentionData = mentions[targetID];
+            mentionInfo.push({ tag: mentionData.tag, id: targetID });
+            message = args.join(' ').replace(mentionData.tag, '').trim();
         } else {
             targetID = args.shift();
             message = args.join(' ');
         }
 
         if (!targetID) {
-            return api.sendMessage('⚠️ الرجاء تحديد المستخدم لإرسال الاعتراف له.', event.threadID);
+            return api.sendMessage('⚠️ الرجاء تحديد المستخدم لإرسال الاعتراف له.', threadID);
         }
 
         if (targetID == senderID) {
-            return api.sendMessage("❌ لا يمكنك إرسال اعتراف لنفسك!", event.threadID);
+            return api.sendMessage("❌ لا يمكنك إرسال اعتراف لنفسك!", threadID);
         }
 
         const assets = readAssets();
         if (!assets.image_urls || assets.image_urls.length === 0) {
-            return api.sendMessage('⚠️ لا توجد صور للاعتراف.', event.threadID);
+            return api.sendMessage('⚠️ لا توجد صور للاعتراف.', threadID);
         }
 
         const validImageUrls = assets.image_urls.filter(url => url && typeof url === 'string');
         if (validImageUrls.length === 0) {
-            return api.sendMessage('⚠️ لا توجد صور صالحة.', event.threadID);
+            return api.sendMessage('⚠️ لا توجد صور صالحة.', threadID);
         }
 
         const randomImage = validImageUrls[Math.floor(Math.random() * validImageUrls.length)];
         const confessionMessage = message || defaultMessages[Math.floor(Math.random() * defaultMessages.length)];
 
         let imagePath = null;
+        let senderName = 'مجهول';
+
         try {
-            console.log(`[API Request] جلب الصورة من: ${randomImage}`);
             const imageResponse = await axios.get(randomImage, { responseType: 'arraybuffer' });
-            console.log(`[API Response] Status: ${imageResponse.status}, Status Text: ${imageResponse.statusText}`);
 
             const cacheDir = path.join(__dirname, 'cache');
             if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
             imagePath = path.join(cacheDir, `confess_${Date.now()}${path.extname(randomImage)}`);
             fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, 'binary'));
 
+            // جلب اسم المرسل
             const senderInfo = await api.getUserInfo(senderID);
-            const senderName = senderInfo[senderID]?.name || 'مجهول';
+            senderName = senderInfo[senderID]?.name || 'مجهول';
 
+            // إنشاء الرسالة
             const finalMessage = {
                 body: `📢 لديك اعتراف:\n\n"${confessionMessage}"\n\n💌 من: ${senderName}`,
-                attachment: fs.createReadStream(imagePath)
+                attachment: fs.createReadStream(imagePath),
+                mentions: mentionInfo
             };
 
-            api.sendMessage(finalMessage, targetID, (err) => {
+            // إرسال الرسالة
+            api.sendMessage(finalMessage, targetID, { reply: messageID }, (err) => {
                 if (imagePath) fs.unlinkSync(imagePath);
                 if (err) {
                     console.error("فشل إرسال الاعتراف:", err);
-                    api.sendMessage("❌ لم يتم إرسال الاعتراف. ربما المستخدم حظر البوت.", event.threadID);
+                    api.sendMessage("❌ لم يتم إرسال الاعتراف. ربما المستخدم حظر البوت.", threadID);
                 } else {
-                    api.sendMessage("✅ تم إرسال اعترافك بنجاح!", event.threadID);
+                    api.sendMessage("✅ تم إرسال اعترافك بنجاح!", threadID);
                 }
             });
 
@@ -150,17 +158,17 @@ module.exports = {
             console.error(`[API Error] فشل جلب الصورة ${randomImage}:`, error.message);
             if (imagePath) fs.unlinkSync(imagePath);
 
-            api.sendMessage("⚠️ حدث خطأ أثناء إرسال الاعتراف. سيتم إرسال الرسالة نصياً فقط.", event.threadID);
-
             const textOnlyMessage = {
-                body: `📢 لديك اعتراف:\n\n"${confessionMessage}"\n\n💌 من: ${senderName || 'مجهول'}`
+                body: `📢 لديك اعتراف:\n\n"${confessionMessage}"\n\n💌 من: ${senderName}`,
+                mentions: mentionInfo
             };
-            api.sendMessage(textOnlyMessage, targetID, (err) => {
+
+            api.sendMessage(textOnlyMessage, targetID, { reply: messageID }, (err) => {
                 if (err) {
                     console.error("فشل إرسال الاعتراف النصي:", err);
-                    api.sendMessage("❌ لم يتم إرسال الاعتراف. ربما المستخدم حظر البوت.", event.threadID);
+                    api.sendMessage("❌ لم يتم إرسال الاعتراف. ربما المستخدم حظر البوت.", threadID);
                 } else {
-                    api.sendMessage("✅ تم إرسال اعترافك نصياً بنجاح!", event.threadID);
+                    api.sendMessage("✅ تم إرسال اعترافك نصياً بنجاح!", threadID);
                 }
             });
         }
