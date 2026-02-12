@@ -200,7 +200,7 @@ module.exports = {
         finalMessage += `•✧• عدد الأوامر: ${uniqueCommands.length}\n`;
         finalMessage += `${line}`;
 
-        const imageURL = 'https://i.ibb.co/rKsDY73q/1768624739835.jpg';
+        const imageURL = 'https://i.ibb.co/sJp75WCF/75b56d9d0b03b232909a1d1cb61f00a1.jpg';
 
         return api.sendMessage(
             {
