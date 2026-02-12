@@ -1,13 +1,13 @@
 const { log } = require('../../logger/logger');
 
-// نخزن الأعضاء اللي رحبنا بيهم (لكل قروب)
+// نخزن الأعضاء المرحب بيهم (لكل قروب)
 const welcomedUsers = new Set();
 
 module.exports = {
   config: {
     name: 'welcome',
-    version: '2.7',
-    author: 'Hridoy + Premium Mention Edit',
+    version: '3.0',
+    author: 'Hridoy + Fixed Multi Mention',
     eventType: ['log:subscribe']
   },
 
@@ -20,11 +20,12 @@ module.exports = {
 
       if (!logMessageData?.addedParticipants) return;
 
+      // فلترة البوت من الأعضاء الجدد
       const newUsers = logMessageData.addedParticipants
         .map(p => p.userFbId)
         .filter(id => id !== botID);
 
-      if (newUsers.length === 0) return;
+      if (!newUsers.length) return;
 
       await sendGroupWelcome(api, threadID, newUsers);
 
@@ -35,41 +36,50 @@ module.exports = {
 };
 
 // ==================================
-// رسالة ترحيب مع منشن رسمي للأعضاء
+// إرسال رسالة الترحيب مع منشن رسمي
 // ==================================
 async function sendGroupWelcome(api, threadID, userIDs) {
-  const threadInfo = await api.getThreadInfo(threadID);
-  const membersInfo = await api.getUserInfo(userIDs);
+  try {
+    const threadInfo = await api.getThreadInfo(threadID);
 
-  const mentions = [];
-  let bodyText = `
+    const mentions = [];
+    let bodyText = `
 ╔═════════❀═════════╗
    نـورتـم مـــــجـمـوعـتـنـا الــــــسـقـيـرة 💛
 
 `;
 
-  userIDs.forEach((id, index) => {
-    const key = `${id}_${threadID}`;
-    if (welcomedUsers.has(key)) return;
+    let count = 1;
 
-    welcomedUsers.add(key);
+    for (const id of userIDs) {
+      const key = `${id}_${threadID}`;
+      if (welcomedUsers.has(key)) continue;
 
-    const name = membersInfo[id]?.name || 'عضو جديد';
-    const tag = `@${name}`;
+      welcomedUsers.add(key);
 
-    bodyText += ` ${index + 1}. ${tag}\n`;
+      try {
+        const userInfo = await api.getUserInfo(id);
+        const name = userInfo?.[id]?.name || "عضو جديد";
+        const tag = `@${name}`;
 
-    mentions.push({
-      tag,
-      id
-    });
-  });
+        bodyText += ` ${count}. ${tag}\n`;
 
-  if (mentions.length === 0) return;
+        mentions.push({
+          tag,
+          id
+        });
 
-  const memberCount = threadInfo.participantIDs.length;
+        count++;
+      } catch (err) {
+        console.error("Error fetching user info:", err);
+      }
+    }
 
-  bodyText += `
+    if (!mentions.length) return;
+
+    const memberCount = threadInfo.participantIDs.length;
+
+    bodyText += `
 
 👥 عدد الأعضاء الحالي: ${memberCount}
 💬 نتمنى لكم أوقات ممتعة وذكريات رائعة معنا!
@@ -77,13 +87,17 @@ async function sendGroupWelcome(api, threadID, userIDs) {
 ╚════════❀════════╝
 `;
 
-  await api.sendMessage(
-    {
-      body: bodyText,
-      mentions
-    },
-    threadID
-  );
+    await api.sendMessage(
+      {
+        body: bodyText,
+        mentions
+      },
+      threadID
+    );
 
-  log('info', `Users welcomed with mention in ${threadID}`);
+    log('info', `Users welcomed with mention in ${threadID}`);
+
+  } catch (error) {
+    log('error', `sendGroupWelcome error: ${error.message}`);
   }
+      }
