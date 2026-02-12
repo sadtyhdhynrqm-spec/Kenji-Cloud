@@ -2,41 +2,42 @@ const fs = require('fs');
 const path = require('path');
 
 const DEV_ID = '61586897962846'; // ايدي المطور
-const COMMANDS_PATH = path.join(__dirname); // عدل لو مجلد الأوامر مختلف
+const COMMANDS_PATH = __dirname; // عدل لو مجلد الأوامر مختلف
 
-// تخزين مؤقت للملفات المعروضة
 let fileCache = {};
 
 module.exports = {
   config: {
     name: 'ايف',
-    version: '3.0',
+    version: '4.0',
     author: 'Hridoy | Modified by Abu Ubaida',
     countDown: 5,
     prefix: true,
     adminOnly: false,
-    description: 'مدير ملفات الأوامر للمطور فقط',
+    description: 'مدير ملفات الأوامر المتكامل (للمطور فقط)',
     category: 'owner',
     guide: {
       ar:
         '{pn} → عرض الملفات\n' +
         '{pn} <رقم> → عرض محتوى ملف\n' +
-        'الرد على كود + {pn} استبدل <اسم_الامر>'
+        '{pn} انشئ <اسم> (رد على كود)\n' +
+        '{pn} استبدل <اسم> (رد على كود)\n' +
+        '{pn} حذف <اسم>\n' +
+        '{pn} ريـلود <اسم>'
     }
   },
 
   onStart: async ({ api, event, args }) => {
     const { threadID, messageID, senderID } = event;
 
-    if (senderID !== DEV_ID) {
+    if (senderID !== DEV_ID)
       return api.sendMessage('❌ الأمر خاص بالمطور فقط.', threadID, messageID);
-    }
 
     const files = fs.readdirSync(COMMANDS_PATH).filter(f => f.endsWith('.js'));
 
-    // ==============================
-    // 1️⃣ عرض كل الملفات
-    // ==============================
+    // =========================
+    // عرض كل الملفات
+    // =========================
     if (!args[0]) {
       if (files.length === 0)
         return api.sendMessage('❌ لا توجد ملفات.', threadID, messageID);
@@ -46,70 +47,106 @@ module.exports = {
         msg += `${index + 1}️⃣ ${file}\n`;
       });
 
-      // حفظهم مؤقتاً
       fileCache[threadID] = files;
-
       return api.sendMessage(msg, threadID, messageID);
     }
 
-    // ==============================
-    // 2️⃣ عرض محتوى ملف برقم
-    // ==============================
+    // =========================
+    // عرض محتوى ملف برقم
+    // =========================
     if (!isNaN(args[0])) {
       const index = parseInt(args[0]) - 1;
 
-      if (!fileCache[threadID] || !fileCache[threadID][index]) {
+      if (!fileCache[threadID] || !fileCache[threadID][index])
         return api.sendMessage('❌ رقم غير صحيح.', threadID, messageID);
-      }
 
       const fileName = fileCache[threadID][index];
       const filePath = path.join(COMMANDS_PATH, fileName);
-
       const content = fs.readFileSync(filePath, 'utf8');
 
       return api.sendMessage(
-        `📄 محتوى الملف: ${fileName}\n\n${content.substring(0, 15000)}`,
+        `📄 ${fileName}\n\n${content.substring(0, 15000)}`,
         threadID,
         messageID
       );
     }
 
-    // ==============================
-    // 3️⃣ استبدال ملف
-    // ==============================
-    if (args[0] === 'استبدل') {
-      if (!event.messageReply || !event.messageReply.body) {
-        return api.sendMessage(
-          '❌ لازم ترد على رسالة تحتوي على الكود الجديد.',
-          threadID,
-          messageID
-        );
-      }
+    const action = args[0];
+    const commandName = args[1];
+    const filePath = path.join(COMMANDS_PATH, `${commandName}.js`);
 
-      const commandName = args[1];
-      if (!commandName) {
-        return api.sendMessage(
-          '❌ اكتب اسم الأمر.\nمثال:\nايف استبدل help',
-          threadID,
-          messageID
-        );
-      }
+    // =========================
+    // إنشاء أمر جديد
+    // =========================
+    if (action === 'انشئ') {
+      if (!event.messageReply?.body)
+        return api.sendMessage('❌ لازم ترد على رسالة فيها كود الأمر.', threadID, messageID);
 
-      const filePath = path.join(COMMANDS_PATH, `${commandName}.js`);
+      if (!commandName)
+        return api.sendMessage('❌ اكتب اسم الأمر.', threadID, messageID);
 
-      if (!fs.existsSync(filePath)) {
-        return api.sendMessage('❌ الملف غير موجود.', threadID, messageID);
-      }
+      if (fs.existsSync(filePath))
+        return api.sendMessage('❌ الملف موجود مسبقاً.', threadID, messageID);
 
-      const newCode = event.messageReply.body;
-
-      fs.writeFileSync(filePath, newCode, 'utf8');
+      fs.writeFileSync(filePath, event.messageReply.body, 'utf8');
 
       return api.sendMessage(
-        `✅ تم استبدال ملف ${commandName}.js بنجاح.\n\n♻️ يفضل إعادة تشغيل البوت.`,
+        `✅ تم إنشاء الأمر ${commandName}.js\n♻️ يفضل إعادة تشغيل البوت.`,
         threadID,
         messageID
       );
+    }
+
+    // =========================
+    // استبدال أمر
+    // =========================
+    if (action === 'استبدل') {
+      if (!event.messageReply?.body)
+        return api.sendMessage('❌ لازم ترد على رسالة فيها الكود الجديد.', threadID, messageID);
+
+      if (!fs.existsSync(filePath))
+        return api.sendMessage('❌ الملف غير موجود.', threadID, messageID);
+
+      fs.writeFileSync(filePath, event.messageReply.body, 'utf8');
+
+      return api.sendMessage(
+        `✅ تم استبدال ${commandName}.js بنجاح.`,
+        threadID,
+        messageID
+      );
+    }
+
+    // =========================
+    // حذف أمر
+    // =========================
+    if (action === 'حذف') {
+      if (!fs.existsSync(filePath))
+        return api.sendMessage('❌ الملف غير موجود.', threadID, messageID);
+
+      fs.unlinkSync(filePath);
+
+      return api.sendMessage(
+        `🗑 تم حذف ${commandName}.js`,
+        threadID,
+        messageID
+      );
+    }
+
+    // =========================
+    // ريـلود أمر
+    // =========================
+    if (action === 'ريلود') {
+      if (!fs.existsSync(filePath))
+        return api.sendMessage('❌ الملف غير موجود.', threadID, messageID);
+
+      delete require.cache[require.resolve(filePath)];
+
+      try {
+        require(filePath);
+        return api.sendMessage(`🔄 تم إعادة تحميل ${commandName}.js بنجاح.`, threadID, messageID);
+      } catch (err) {
+        return api.sendMessage(`❌ خطأ في الكود:\n${err.message}`, threadID, messageID);
+      }
     }
 
     return api.sendMessage('❌ أمر غير معروف.', threadID, messageID);
