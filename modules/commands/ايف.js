@@ -3,7 +3,9 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const DEV_ID = '61586897962846';
-const COMMANDS_PATH = path.join(process.cwd(), 'commands');
+
+// 👇 تم التعديل هنا
+const COMMANDS_PATH = path.join(process.cwd(), 'modules');
 
 let fileCache = {};
 
@@ -38,7 +40,7 @@ function autoInstallPackages(code, api, threadID) {
 module.exports = {
   config: {
     name: 'ايف',
-    version: '5.1',
+    version: '5.2',
     author: 'Hridoy | Modified by Abu Ubaida',
     countDown: 5,
     prefix: true,
@@ -63,12 +65,16 @@ module.exports = {
     if (senderID !== DEV_ID)
       return api.sendMessage('❌ الأمر خاص بالمطور فقط.', threadID, messageID);
 
-    if (!fs.existsSync(COMMANDS_PATH))
-      return api.sendMessage('❌ مجلد الأوامر غير موجود.', threadID, messageID);
+    if (!fs.existsSync(COMMANDS_PATH)) {
+      return api.sendMessage(
+        `❌ مجلد الأوامر غير موجود.\n\nالمسار الحالي:\n${COMMANDS_PATH}`,
+        threadID,
+        messageID
+      );
+    }
 
     const files = fs.readdirSync(COMMANDS_PATH).filter(f => f.endsWith('.js'));
 
-    // عرض الملفات
     if (!args[0]) {
       if (!files.length)
         return api.sendMessage('❌ لا توجد ملفات.', threadID, messageID);
@@ -82,7 +88,6 @@ module.exports = {
       return api.sendMessage(msg, threadID, messageID);
     }
 
-    // عرض محتوى برقم
     if (!isNaN(args[0])) {
       const index = parseInt(args[0]) - 1;
 
@@ -110,7 +115,6 @@ module.exports = {
 
     const filePath = path.join(COMMANDS_PATH, `${name}.js`);
 
-    // إنشاء
     if (action === 'انشئ') {
       if (!event.messageReply?.body)
         return api.sendMessage('❌ لازم ترد على كود.', threadID, messageID);
@@ -130,7 +134,6 @@ module.exports = {
       );
     }
 
-    // استبدال
     if (action === 'استبدل') {
       if (!event.messageReply?.body)
         return api.sendMessage('❌ لازم ترد على كود.', threadID, messageID);
