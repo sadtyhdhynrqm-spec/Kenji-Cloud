@@ -48,7 +48,7 @@ module.exports = {
         if (!userDB[targetID]) {
             if (targetID === senderID) {
                 return api.sendMessage(
-                    '❌ ما عندك حساب في النظام.',
+                    '❌ اعمل حساب اول يا فقير.',
                     event.threadID
                 );
             } else {
@@ -59,14 +59,14 @@ module.exports = {
             }
         }
 
-        const balance = userDB[targetID].balance;
+        const balance = userDB[targetID].balance || 0;
         const name = userDB[targetID].name;
 
         let message;
         if (targetID === senderID) {
-            message = `💰 رصيدك الحالي هو: ${balance}`;
+            message = `💳 ︙ رصيدك الحالي هو\n💰 ︙ ${balance.toLocaleString()} رصيد\n━━━━━━━━━━━━━`;
         } else {
-            message = `💳 رصيد ${name} الحالي هو: ${balance}`;
+            message = `💳 ︙ رصيد المستخدم [ ${name} ]\n💰 ︙ ${balance.toLocaleString()} رصيد\n━━━━━━━━━━━━━`;
         }
 
         return api.sendMessage(message, event.threadID);
