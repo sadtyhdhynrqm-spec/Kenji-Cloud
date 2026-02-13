@@ -1,32 +1,69 @@
-
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { execSync } = require('child_process');
 
-const DEV_ID = '61586897962846'; // ايدي المطور
-const COMMANDS_PATH = path.join(process.cwd(), 'commands');
+const DEV_ID = '61586897962846';
+const COMMANDS_PATH = __dirname;
 
 let fileCache = {};
+
+// ==========================
+// تغليف تلقائي لبنية البوت
+// ==========================
+function wrapToBotStructure(code, commandName) {
+  if (code.includes('module.exports')) return code;
+
+  return `
+module.exports = {
+  config: {
+    name: '${commandName}',
+    version: '1.0',
+    author: 'AutoFixed by Abu Ubaida',
+    countDown: 5,
+    prefix: true,
+    adminOnly: false,
+    description: 'أمر تم تعديله تلقائياً ليتوافق مع بنية البوت',
+    category: 'auto'
+  },
+
+  onStart: async ({ api, event, args }) => {
+    try {
+${code.split('\n').map(line => '      ' + line).join('\n')}
+    } catch (err) {
+      return api.sendMessage('❌ خطأ: ' + err.message, event.threadID, event.messageID);
+    }
+  }
+};
+`;
+}
+
+// ==========================
+// استخراج اسم المكتبة من الخطأ
+// ==========================
+function extractMissingModule(errorMessage) {
+  const match = errorMessage.match(/Cannot find module '(.*?)'/);
+  return match ? match[1] : null;
+}
 
 module.exports = {
   config: {
     name: 'ايف',
-    version: '4.2',
-    author: 'Hridoy | Modified by Abu Ubaida',
+    version: '6.0',
+    author: 'Hridoy | Advanced by Abu Ubaida',
     countDown: 5,
     prefix: true,
     adminOnly: false,
-    description: 'مدير ملفات الأوامر + تثبيت مكتبات (للمطور فقط)',
+    description: 'مدير أوامر متكامل + تثبيت مكتبات + إصلاح تلقائي',
     category: 'owner',
     guide: {
       ar:
-        '{pn} → عرض الملفات\n' +
-        '{pn} <رقم> → عرض محتوى ملف\n' +
-        '{pn} انشئ <اسم> (رد على كود)\n' +
-        '{pn} استبدل <اسم> (رد على كود)\n' +
-        '{pn} حذف <اسم>\n' +
-        '{pn} ريـلود <اسم>\n' +
-        '{pn} ثبت <اسم_مكتبة>'
+        '📂 {pn} → عرض الملفات\n' +
+        '📄 {pn} <رقم> → عرض محتوى ملف\n' +
+        '🆕 {pn} انشئ <اسم> (رد على كود)\n' +
+        '♻️ {pn} استبدل <اسم> (رد على كود)\n' +
+        '🗑 {pn} حذف <اسم>\n' +
+        '🔄 {pn} ريلود <اسم>\n' +
+        '📦 {pn} ثبت <مكتبة>'
     }
   },
 
@@ -36,21 +73,13 @@ module.exports = {
     if (senderID !== DEV_ID)
       return api.sendMessage('❌ الأمر خاص بالمطور فقط.', threadID, messageID);
 
-    if (!fs.existsSync(COMMANDS_PATH)) {
-      return api.sendMessage(
-        `❌ مجلد الأوامر غير موجود:\n${COMMANDS_PATH}`,
-        threadID,
-        messageID
-      );
-    }
-
     const files = fs.readdirSync(COMMANDS_PATH).filter(f => f.endsWith('.js'));
 
     // =========================
-    // عرض الملفات
+    // عرض كل الملفات
     // =========================
     if (!args[0]) {
-      if (files.length === 0)
+      if (!files.length)
         return api.sendMessage('❌ لا توجد ملفات.', threadID, messageID);
 
       let msg = '📂 ملفات الأوامر:\n\n';
@@ -63,7 +92,7 @@ module.exports = {
     }
 
     // =========================
-    // عرض محتوى ملف برقم
+    // عرض ملف برقم
     // =========================
     if (!isNaN(args[0])) {
       const index = parseInt(args[0]) - 1;
@@ -83,73 +112,79 @@ module.exports = {
     }
 
     const action = args[0];
-    const name = args[1];
-
-    if (!name && action !== 'ثبت')
-      return api.sendMessage('❌ اكتب اسم الأمر.', threadID, messageID);
-
-    const filePath = path.join(COMMANDS_PATH, `${name}.js`);
+    const commandName = args[1];
+    const filePath = path.join(COMMANDS_PATH, `${commandName}.js`);
 
     // =========================
-    // تثبيت مكتبة
+    // تثبيت مكتبة (Render compatible)
     // =========================
     if (action === 'ثبت') {
-      if (!name)
+      const pkg = commandName;
+      if (!pkg)
         return api.sendMessage('❌ اكتب اسم المكتبة.', threadID, messageID);
 
-      api.sendMessage(`📦 جاري تثبيت ${name} ...`, threadID);
-
-      exec(`npm install ${name}`, { cwd: process.cwd() }, (error, stdout, stderr) => {
-        if (error) {
-          return api.sendMessage(
-            `❌ فشل التثبيت:\n${stderr}`,
-            threadID,
-            messageID
-          );
-        }
+      try {
+        execSync(`npm install ${pkg} --save`, { stdio: 'inherit' });
 
         return api.sendMessage(
-          `✅ تم تثبيت ${name} بنجاح.\n♻️ يفضل إعادة تشغيل البوت.`,
+          `✅ تم تثبيت ${pkg} بنجاح.\n♻️ جاري إعادة تشغيل البوت...`,
           threadID,
-          messageID
+          messageID,
+          () => process.exit(1)
         );
-      });
 
-      return;
+      } catch (err) {
+        return api.sendMessage(`❌ فشل التثبيت:\n${err.message}`, threadID, messageID);
+      }
     }
 
     // =========================
-    // إنشاء
+    // إنشاء أمر ذكي
     // =========================
     if (action === 'انشئ') {
       if (!event.messageReply?.body)
-        return api.sendMessage('❌ لازم ترد على رسالة فيها كود.', threadID, messageID);
+        return api.sendMessage('❌ لازم ترد على رسالة فيها الكود.', threadID, messageID);
+
+      if (!commandName)
+        return api.sendMessage('❌ اكتب اسم الأمر.', threadID, messageID);
 
       if (fs.existsSync(filePath))
         return api.sendMessage('❌ الملف موجود مسبقاً.', threadID, messageID);
 
-      fs.writeFileSync(filePath, event.messageReply.body, 'utf8');
+      let code = wrapToBotStructure(event.messageReply.body, commandName);
+      fs.writeFileSync(filePath, code, 'utf8');
 
-      return api.sendMessage(`✅ تم إنشاء ${name}.js`, threadID, messageID);
+      return api.sendMessage(
+        `✅ تم إنشاء ${commandName}.js\n♻️ جاري إعادة التشغيل...`,
+        threadID,
+        messageID,
+        () => process.exit(1)
+      );
     }
 
     // =========================
-    // استبدال
+    // استبدال أمر
     // =========================
     if (action === 'استبدل') {
       if (!event.messageReply?.body)
-        return api.sendMessage('❌ لازم ترد على رسالة فيها الكود.', threadID, messageID);
+        return api.sendMessage('❌ لازم ترد على رسالة فيها الكود الجديد.', threadID, messageID);
 
       if (!fs.existsSync(filePath))
         return api.sendMessage('❌ الملف غير موجود.', threadID, messageID);
 
-      fs.writeFileSync(filePath, event.messageReply.body, 'utf8');
+      let code = wrapToBotStructure(event.messageReply.body, commandName);
+      fs.writeFileSync(filePath, code, 'utf8');
 
-      return api.sendMessage(`✅ تم استبدال ${name}.js`, threadID, messageID);
+      return api.sendMessage(
+        `✅ تم استبدال ${commandName}.js\n♻️ جاري إعادة التشغيل...`,
+        threadID,
+        messageID,
+        () => process.exit(1)
+      );
     }
 
     // =========================
-    // حذف
+    // حذف أمر
     // =========================
     if (action === 'حذف') {
       if (!fs.existsSync(filePath))
@@ -157,23 +192,39 @@ module.exports = {
 
       fs.unlinkSync(filePath);
 
-      return api.sendMessage(`🗑 تم حذف ${name}.js`, threadID, messageID);
+      return api.sendMessage(
+        `🗑 تم حذف ${commandName}.js\n♻️ جاري إعادة التشغيل...`,
+        threadID,
+        messageID,
+        () => process.exit(1)
+      );
     }
 
     // =========================
-    // ريـلود
+    // ريلود + كشف مكتبات ناقصة
     // =========================
     if (action === 'ريلود') {
       if (!fs.existsSync(filePath))
         return api.sendMessage('❌ الملف غير موجود.', threadID, messageID);
 
-      try {
-        delete require.cache[require.resolve(filePath)];
-        require(filePath);
+      delete require.cache[require.resolve(filePath)];
 
-        return api.sendMessage(`🔄 تم إعادة تحميل ${name}.js`, threadID, messageID);
+      try {
+        require(filePath);
+        return api.sendMessage(`🔄 تم تحميل ${commandName}.js بنجاح.`, threadID, messageID);
       } catch (err) {
-        return api.sendMessage(`❌ خطأ:\n${err.message}`, threadID, messageID);
+
+        const missing = extractMissingModule(err.message);
+
+        if (missing) {
+          return api.sendMessage(
+            `❌ مكتبة ناقصة: ${missing}\n💡 ثبتها بالأمر:\nايف ثبت ${missing}`,
+            threadID,
+            messageID
+          );
+        }
+
+        return api.sendMessage(`❌ خطأ في الكود:\n${err.message}`, threadID, messageID);
       }
     }
 
