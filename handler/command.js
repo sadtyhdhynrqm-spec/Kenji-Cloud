@@ -27,24 +27,14 @@ const loadCommands = () => {
 // تنفيذ الأمر
 const handleCommand = async ({ message, args, event, api, Users, Threads, commands }) => {
   try {
-    const threadData = Threads.get(event.threadID) || {};
-    const prefixEnabled = threadData.settings?.prefixEnabled ?? config.prefixEnabled ?? true; 
-    // إذا prefixEnabled = false، البوت يشتغل بدون بادئة
+    const botPrefix = config.prefix;
 
-    let commandName;
-
-    if (prefixEnabled) {
-      // لو البادئة مفعلة، نفترض أن args[0] يحتوي على اسم الأمر
-      if (!args || !args[0]) return;
-      commandName = args[0].toLowerCase();
-    } else {
-      // بدون بادئة: ناخذ الكلمة الأولى في الرسالة كأمر
-      if (!message.body) return;
-      const words = message.body.trim().split(/\s+/);
-      if (!words[0]) return;
-      commandName = words[0].toLowerCase();
-      args = words; // نحتفظ بكل الكلمات كـ args
-    }
+    if (!message.body || !message.body.startsWith(botPrefix)) return;
+    const body = message.body.slice(botPrefix.length).trim();
+    if (!body) return;
+    const words = body.split(/\s+/);
+    const commandName = words[0].toLowerCase();
+    args = words; 
 
     const command = commands.get(commandName) || Array.from(commands.values()).find(cmd => cmd.config.aliases?.includes(commandName));
     if (!command) return; // الأمر غير موجود، لا يرسل شيء
