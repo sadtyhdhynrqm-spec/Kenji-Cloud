@@ -129,20 +129,21 @@ module.exports = {
         };
 
         for (const cmd of uniqueCommands) {
-            let category = cmd.category;
+            let category = cmd.category || 'الترفيه';
+
+            // ✅ تصحيح الفئة إذا كانت من فئات الألعاب
+            if (['اقتصاد', 'اللعب', 'game', 'play'].includes(category)) {
+                category = 'اللعب';
+            }
 
             // ✅ لو الأمر تبع مطور
             if (
-                cmd.category === 'owner' ||
-                cmd.category === 'المطور' ||
-                cmd.role === 2
+                category === 'owner' ||
+                category === 'المطور' ||
+                cmd.role === 2 ||
+                ['رستارت', 'إشعار'].includes(cmd.name)
             ) {
                 category = 'المطور';
-            }
-
-            // ✅ لو ما عندو قسم -> الترفيه
-            if (!category) {
-                category = 'الترفيه';
             }
 
             category = categoryMap[category] || category;
@@ -153,16 +154,12 @@ module.exports = {
 
         const orderedCats = [
             'المجموعة',
-            'الخدمات السريعة',
             'الصور',
             'الوسائط',
-            'الموسيقى',
-            'الفيديو',
             'الذكاء AI الأقوى',
             'الترفيه',
             'اللعب',
             'عشوائي',
-            'المستوى',
             'المطور',
             'الأدوات'
         ];
@@ -171,14 +168,15 @@ module.exports = {
         // بناء القائمة
         // =========================
         let finalMessage = "";
-        const line = "━━━━━━━━━━•✧•━━━━━━━━━━";
+        const line = "━━━━━━━━━━━━━";
 
         for (const category of orderedCats) {
             const cmds = categories[category];
             if (!cmds || cmds.length === 0) continue;
 
-            // إخفاء قسم المطور لغيرك
-            if (category === "المطور" && !config.adminBot?.includes(event.senderID)) {
+            // إخفاء قسم المطور لغير الأدمن
+            const adminList = config.adminUIDs || [];
+            if (category === "المطور" && !adminList.includes(event.senderID)) {
                 continue;
             }
 
